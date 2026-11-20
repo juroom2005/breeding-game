@@ -3,7 +3,7 @@
 // World는 내부 값이 바뀌는 객체라 state에 한 번만 넣고, 다시 그리기는 GameState 변경으로 일으킨다
 import { useEffect, useState } from 'react';
 import { World } from '@/engine';
-import { newGame, nextDay, tryMate, type Difficulty, type GameState } from '@/game/game';
+import { newGame, nextDay, setOrder, tryMate, withDefaults, type Difficulty, type GameState } from '@/game/game';
 import { loadGame, saveGame } from '@/game/storage';
 import TitleScreen from '@/components/TitleScreen';
 import FarmScreen from '@/components/FarmScreen';
@@ -18,7 +18,7 @@ export default function Home() {
 
   useEffect(() => {
     loadGame().then((s) => {
-      setSaved(s);
+      setSaved(s && withDefaults(s));
       setScreen('title');
     });
   }, []);
@@ -54,7 +54,12 @@ export default function Home() {
       state={state}
       world={world}
       onNextDay={() => commit(nextDay(state, world))}
-      onMate={(m, f) => commit(tryMate(state, world, m, f).state)}
+      onMate={(m, f) => {
+        const r = tryMate(state, world, m, f);
+        commit(r.state);
+        return r;
+      }}
+      onReorder={(order) => commit(setOrder(state, order))}
       onTitle={() => setScreen('title')}
     />
   );

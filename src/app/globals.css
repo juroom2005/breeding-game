@@ -44,3 +44,16 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+@keyframes hold-grow {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.hold-progress {
+  animation: hold-grow var(--hold-ms, 900ms) linear forwards;
+}

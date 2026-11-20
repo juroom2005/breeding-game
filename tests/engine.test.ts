@@ -234,3 +234,19 @@ test('초대는 항상 혈통이 발현된다', () => {
     assert.ok(x.pheno.bloodlines.magic.pattern);
   }
 });
+
+test('아기 단계: 인간 2일, 엘프 3일, 하프는 섞어서 반올림', () => {
+  const w = new World(7);
+  const hf = w.buyFromMarket('human', 'F'), hm = w.buyFromMarket('human', 'M');
+  const ef = w.buyFromMarket('elf', 'F'), em = w.buyFromMarket('elf', 'M');
+  const human = w.breedInstant(hf.id, hm.id);
+  const elf = w.breedInstant(ef.id, em.id);
+  const half = w.breedInstant(hf.id, em.id);
+  assert.equal(w.babyDays(human), 2);
+  assert.equal(w.babyDays(elf), 3);
+  assert.equal(w.babyDays(half), 3);
+  w.day += 2;
+  assert.ok(w.isAdult(human));
+  assert.ok(!w.isAdult(elf));
+  assert.equal(w.daysUntilAdult(elf), 1);
+});

@@ -1,66 +1,151 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { World } from '@/engine';
-import { DIFFICULTY_LABEL, pregnantCount, totalScore, type GameState } from '@/game/game';
+import type { Individual, World } from '@/engine';
+import { DIFFICULTY_LABEL, asPair, farmCount, mateBlockReason, totalScore, type GameState } from '@/game/game';
+import { josa } from '@/game/josa';
 import { isTypingTarget, loadShortcutsEnabled, saveShortcutsEnabled } from '@/game/shortcuts';
-import IndividualCard from './IndividualCard';
+import IndividualCard, { type DropHint } from './IndividualCard';
 import DetailPanel from './DetailPanel';
+import BreedingPanel from './BreedingPanel';
+import PregnancyRoom from './PregnancyRoom';
 import ShortcutHelp from './ShortcutHelp';
+import Portrait from './Portrait';
+import { useCardDrag } from './useCardDrag';
+
+interface MateResult {
+  ok: boolean;
+  message: string;
+}
 
 interface Props {
   state: GameState;
   world: World;
   onNextDay: () => void;
-  onMate: (motherId: string, fatherId: string) => void;
+  onMate: (motherId: string, fatherId: string) => MateResult;
+  onReorder: (order: string[]) => void;
   onTitle: () => void;
 }
 
-type SortKey = 'born' | 'score' | 'sex';
+type SortKey = 'custom' | 'born' | 'score' | 'sex';
 
 const SORTS: [SortKey, string][] = [
+  ['custom', '내 순서'],
   ['born', '태어난 순'],
   ['score', '점수순'],
   ['sex', '성별'],
 ];
 
 const SOON = ['마켓', '임무', '의뢰', '도감', '농장 관리'];
+const HOLD_MS = 900;
 
-export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }: Props) {
+export default function FarmScreen({ state, world, onNextDay, onMate, onReorder, onTitle }: Props) {
   const all = world.active();
   const [selectedId, setSelectedId] = useState<string | null>(all[0]?.id ?? null);
-  const [sort, setSort] = useState<SortKey>('born');
+  const [sort, setSort] = useState<SortKey>('custom');
   const [toast, setToast] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
   const [shortcutsOn, setShortcutsOn] = useState(loadShortcutsEnabled);
   const [announce, setAnnounce] = useState('');
+  const [motherId, setMotherId] = useState<string | null>(null);
+  const [fatherId, setFatherId] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const listRef = useRef<HTMLUListElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
   const selected = selectedId ? world.get(selectedId) : undefined;
 
-  const list = [...all].sort((a, b) => {
-    if (sort === 'score') return (world.isAdult(b) ? totalScore(b) : -1) - (world.isAdult(a) ? totalScore(a) : -1);
-    if (sort === 'sex') return a.sex === b.sex ? 0 : a.sex === 'F' ? -1 : 1;
-    return a.birthOrder - b.birthOrder;
-  });
+  const usable = (id: string | null) => {
+    const x = id ? world.get(id) : undefined;
+    return x && x.status === 'active' && !x.pregnancy && world.isAdult(x) ? x : undefined;
+  };
+  const mother = usable(motherId);
+  const father = usable(fatherId);
 
-  const over = all.length > state.farmSlots;
+  const orderIndex = new Map(state.order.map((id, i) => [id, i]));
+  const list = all
+    .filter((x) => !x.pregnancy)
+    .sort((a, b) => {
+      if (sort === 'score') return (world.isAdult(b) ? totalScore(b) : -1) - (world.isAdult(a) ? totalScore(a) : -1);
+      if (sort === 'sex' && a.sex !== b.sex) return a.sex === 'F' ? -1 : 1;
+      if (sort === 'custom') return (orderIndex.get(a.id) ?? Infinity) - (orderIndex.get(b.id) ?? Infinity) || a.birthOrder - b.birthOrder;
+      return a.birthOrder - b.birthOrder;
+    });
+  const pregnant = all.filter((x) => x.pregnancy).sort((a, b) => a.pregnancy!.dueDay - b.pregnancy!.dueDay);
+
+  const count = farmCount(world);
+  const over = count > state.farmSlots;
   const today = state.log.filter((l) => l.day === world.day).map((l) => l.text).join(' ');
+  const focusedId = list.some((x) => x.id === selectedId) ? selectedId : list[0]?.id;
 
   const showToast = (text: string) => {
     window.clearTimeout(toastTimer.current);
     setToast(text);
-    toastTimer.current = window.setTimeout(() => setToast(''), 2400);
+    toastTimer.current = window.setTimeout(() => setToast(''), 2600);
   };
-
-  const focusedId = list.some((x) => x.id === selectedId) ? selectedId : list[0]?.id;
 
   const select = (id: string, moveFocus: boolean) => {
     setSelectedId(id);
     const card = document.getElementById(`card-${id}`);
     card?.scrollIntoView({ block: 'nearest' });
     if (moveFocus) card?.focus();
+  };
+
+  const mate = (m: Individual, f: Individual) => {
+    const r = onMate(m.id, f.id);
+    showToast(`${m.name} × ${f.name}: ${r.message}`);
+    if (r.ok && motherId === m.id) setMotherId(null);
+  };
+
+  const toBreeding = (ind: Individual | undefined) => {
+    if (!ind) return;
+    if (!world.isAdult(ind)) return showToast(`${josa(ind.name, '은/는')} 아직 아기라 교배할 수 없습니다`);
+    if (ind.pregnancy) return showToast(`${josa(ind.name, '은/는')} 임신 중입니다`);
+    if (ind.sex === 'F') setMotherId(ind.id);
+    else setFatherId(ind.id);
+    setAnnounce(`${josa(ind.name, '을/를')} ${ind.sex === 'F' ? '엄마' : '아빠'} 칸에 올렸습니다`);
+  };
+
+  const swap = (aId: string, bId: string) => {
+    const ids = list.map((x) => x.id);
+    const i = ids.indexOf(aId);
+    const j = ids.indexOf(bId);
+    if (i < 0 || j < 0 || i === j) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    const rest = state.order.filter((id) => !ids.includes(id));
+    onReorder([...ids, ...rest]);
+    setSort('custom');
+  };
+
+  const holdPair = (aId: string, bId: string) => {
+    const a = world.get(aId);
+    const b = world.get(bId);
+    if (!a || !b) return null;
+    const pair = asPair(a, b);
+    if (!pair) return { pair: null, reason: null };
+    if (!world.isAdult(a) || !world.isAdult(b)) return { pair, reason: '아기는 교배 불가' };
+    return { pair, reason: mateBlockReason(state, world, pair[0], pair[1]) };
+  };
+
+  const { drag, startDrag, consumeClick } = useCardDrag({
+    holdMs: HOLD_MS,
+    canHold: (a, b) => {
+      const h = holdPair(a, b);
+      return !!h?.pair && !h.reason;
+    },
+    onHoldComplete: (a, b) => {
+      const h = holdPair(a, b);
+      if (h?.pair && !h.reason) mate(h.pair[0], h.pair[1]);
+    },
+    onDropCard: swap,
+    onDropSlot: (id) => toBreeding(world.get(id)),
+  });
+
+  const hintFor = (id: string): DropHint | null => {
+    if (!drag || drag.target?.kind !== 'card' || drag.target.id !== id) return null;
+    if (drag.holding) return { kind: 'mate', text: '그대로 두면 교배' };
+    const h = holdPair(drag.id, id);
+    if (h?.pair && h.reason) return { kind: 'blocked', text: `${h.reason} · 놓으면 자리 바꾸기` };
+    return { kind: 'swap', text: '놓으면 자리 바꾸기' };
   };
 
   const onListKey = (e: React.KeyboardEvent<HTMLUListElement>) => {
@@ -71,6 +156,12 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
     const i = Math.max(0, list.findIndex((x) => x.id === focusedId));
     const step: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols };
     const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : Math.min(list.length - 1, Math.max(0, i + step[e.key]));
+    if (e.shiftKey && focusedId && next !== i) {
+      swap(focusedId, list[next].id);
+      setAnnounce(`${josa(list[i].name, '을/를')} ${next + 1}번째 자리로 옮겼습니다`);
+      requestAnimationFrame(() => document.getElementById(`card-${focusedId}`)?.focus());
+      return;
+    }
     select(list[next].id, true);
   };
 
@@ -84,16 +175,15 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
       }
       if (!shortcutsOn) return;
       const key = e.key.toLowerCase();
-      const click = (name: string) => document.querySelector<HTMLElement>(`[data-shortcut="${name}"]:not([disabled])`);
       if (key === 'n') onNextDay();
       else if (key === 's') setSort((s) => SORTS[(SORTS.findIndex(([k]) => k === s) + 1) % SORTS.length][0]);
       else if (key === 'l') document.getElementById(`card-${focusedId}`)?.focus();
       else if (key === 'd') detailRef.current?.focus();
-      else if (key === 'p') click('mate-partner')?.focus();
+      else if (key === 'e') toBreeding(selected);
       else if (key === 'm') {
-        const btn = click('mate-submit');
-        if (btn) btn.click();
-        else showToast('지금은 교배할 수 없습니다');
+        const reason = mateBlockReason(state, world, mother, father);
+        if (reason) showToast(reason);
+        else mate(mother!, father!);
       } else if (e.key === '[' || e.key === ']') {
         if (!list.length) return;
         const i = Math.max(0, list.findIndex((x) => x.id === selectedId));
@@ -112,6 +202,8 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
     saveShortcutsEnabled(on);
   };
 
+  const dragged = drag ? world.get(drag.id) : undefined;
+
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <header className="shrink-0 border-b border-line bg-panel">
@@ -123,8 +215,8 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
           <dl className="flex gap-6">
             <Stat label="날짜" value={`${world.day + 1}일차`} />
             <Stat label="골드" value={`${state.gold.toLocaleString()}g`} valueClass="text-gold" />
-            <Stat label="농장" value={`${all.length} / ${state.farmSlots}`} valueClass={over ? 'text-danger' : ''} />
-            <Stat label="임신실" value={`${pregnantCount(world)} / ${state.pregnancyRoom}`} />
+            <Stat label="농장" value={`${count} / ${state.farmSlots}`} valueClass={over ? 'text-danger' : ''} />
+            <Stat label="임신실" value={`${pregnant.length} / ${state.pregnancyRoom}`} />
           </dl>
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -171,47 +263,71 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
       </header>
 
       <main id="main" className="mx-auto grid w-full max-w-7xl flex-1 gap-5 px-5 py-5 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <section aria-labelledby="list-title" className="flex flex-col lg:min-h-0">
-          <div className="mb-3 flex h-8 shrink-0 items-center gap-3">
-            <h2 id="list-title" className="font-semibold">
-              개체 <span className="tabular-nums">{all.length}</span>
-            </h2>
-            <p className="min-w-0 flex-1 truncate text-sm text-danger">{over && `농장 칸(${state.farmSlots})을 넘었습니다`}</p>
-            <div role="group" aria-label="정렬 기준" className="flex shrink-0 gap-1 text-xs">
-              {SORTS.map(([k, label]) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={sort === k}
-                  onClick={() => setSort(k)}
-                  className={`h-7 w-16 rounded-md ${sort === k ? 'bg-ink text-white' : 'bg-panel text-mute hover:text-ink'}`}
-                >
-                  {label}
-                </button>
-              ))}
+        <div className="flex flex-col gap-4 lg:min-h-0">
+          <div className="grid shrink-0 gap-4 lg:h-[152px] lg:grid-cols-[minmax(0,1fr)_auto]">
+            <BreedingPanel
+              world={world}
+              state={state}
+              mother={mother}
+              father={father}
+              dropActive={drag?.target?.kind === 'slot'}
+              shortcutsOn={shortcutsOn}
+              onClear={(r) => (r === 'mother' ? setMotherId(null) : setFatherId(null))}
+              onMate={() => mother && father && mate(mother, father)}
+            />
+            <div className="h-[152px] lg:w-[300px]">
+              <PregnancyRoom world={world} capacity={state.pregnancyRoom} mothers={pregnant} selectedId={selectedId} onSelect={setSelectedId} />
             </div>
           </div>
-          <p id="list-help" className="sr-only">방향키로 개체 사이를 이동합니다.</p>
-          <ul
-            ref={listRef}
-            onKeyDown={onListKey}
-            aria-labelledby="list-title"
-            aria-describedby="list-help"
-            className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 p-1 lg:overflow-y-auto lg:[scrollbar-gutter:stable]"
-          >
-            {list.map((x) => (
-              <li key={x.id}>
-                <IndividualCard
-                  ind={x}
-                  world={world}
-                  selected={x.id === selectedId}
-                  focusable={x.id === focusedId}
-                  onSelect={() => setSelectedId(x.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+
+          <section aria-labelledby="list-title" className="flex flex-col lg:min-h-0 lg:flex-1">
+            <div className="mb-2 flex h-8 shrink-0 items-center gap-3">
+              <h2 id="list-title" className="font-semibold">
+                농장 <span className="tabular-nums">{count}</span>
+              </h2>
+              <p className="min-w-0 flex-1 truncate text-sm text-danger">{over && `농장 칸(${state.farmSlots})을 넘었습니다`}</p>
+              <div role="group" aria-label="정렬 기준" className="flex shrink-0 gap-1 text-xs">
+                {SORTS.map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={sort === k}
+                    onClick={() => setSort(k)}
+                    className={`h-7 w-16 rounded-md ${sort === k ? 'bg-ink text-white' : 'bg-panel text-mute hover:text-ink'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p id="list-help" className="sr-only">
+              방향키로 이동, Shift와 방향키로 자리 옮기기. 마우스로 끌어서 자리를 바꾸거나, 다른 성별 개체 위에 잠시 대고 있으면 교배합니다.
+            </p>
+            <ul
+              ref={listRef}
+              onKeyDown={onListKey}
+              aria-labelledby="list-title"
+              aria-describedby="list-help"
+              className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 p-1 lg:overflow-y-auto lg:[scrollbar-gutter:stable]"
+            >
+              {list.map((x) => (
+                <li key={x.id}>
+                  <IndividualCard
+                    ind={x}
+                    world={world}
+                    selected={x.id === selectedId}
+                    focusable={x.id === focusedId}
+                    dragging={drag?.id === x.id}
+                    hint={hintFor(x.id)}
+                    holdMs={HOLD_MS}
+                    onSelect={() => !consumeClick() && setSelectedId(x.id)}
+                    onPointerDown={(e) => startDrag(e, x.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
 
         <aside aria-label="선택한 개체와 농장 기록" className="flex flex-col gap-5 lg:min-h-0">
           <div
@@ -222,7 +338,15 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
             className="rounded-2xl border border-line bg-panel p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:[scrollbar-gutter:stable]"
           >
             {selected ? (
-              <DetailPanel key={selected.id} ind={selected} world={world} state={state} onMate={onMate} />
+              <DetailPanel
+                key={selected.id}
+                ind={selected}
+                world={world}
+                state={state}
+                shortcutsOn={shortcutsOn}
+                inBreeding={selected.id === mother?.id || selected.id === father?.id}
+                onToBreeding={() => toBreeding(selected)}
+              />
             ) : (
               <p className="text-sm text-mute">개체를 선택하세요.</p>
             )}
@@ -241,6 +365,12 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
         </aside>
       </main>
 
+      {dragged && drag && (
+        <div aria-hidden="true" className="pointer-events-none fixed z-40 -translate-x-1/2 -translate-y-1/2 drop-shadow-lg" style={{ left: drag.x, top: drag.y }}>
+          <Portrait ind={dragged} baby={!world.isAdult(dragged)} size={72} decorative />
+        </div>
+      )}
+
       <p className="sr-only" aria-live="polite">
         {world.day + 1}일차. {today}
       </p>
@@ -248,8 +378,8 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
         {announce}
       </p>
       <ShortcutHelp open={helpOpen} enabled={shortcutsOn} onEnabledChange={setShortcuts} onClose={() => setHelpOpen(false)} />
-      <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2">
-        {toast && <p className="rounded-xl bg-ink px-4 py-2.5 text-sm text-white shadow-lg">{toast}</p>}
+      <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+        {toast && <p className="max-w-[90vw] rounded-xl bg-ink px-4 py-2.5 text-sm text-white shadow-lg">{toast}</p>}
       </div>
     </div>
   );

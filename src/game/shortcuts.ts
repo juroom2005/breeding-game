@@ -6,9 +6,10 @@ export interface Shortcut {
 export const FARM_SHORTCUTS: Shortcut[] = [
   { keys: ['N'], label: '다음 날' },
   { keys: ['←', '→', '↑', '↓'], label: '개체 목록에서 이동 (목록에 포커스가 있을 때)' },
+  { keys: ['Shift', '+ 방향키'], label: '선택한 개체 자리 옮기기 (목록에 포커스가 있을 때)' },
   { keys: ['[', ']'], label: '이전 / 다음 개체 선택' },
-  { keys: ['M'], label: '교배 시도 (선택한 암컷)' },
-  { keys: ['P'], label: '교배 상대 고르기' },
+  { keys: ['E'], label: '선택한 개체를 교배 칸에 올리기' },
+  { keys: ['M'], label: '교배 시도' },
   { keys: ['S'], label: '정렬 기준 바꾸기' },
   { keys: ['L'], label: '개체 목록으로 이동' },
   { keys: ['D'], label: '상세 정보로 이동' },

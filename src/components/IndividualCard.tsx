@@ -2,15 +2,24 @@ import type { Individual, World } from '@/engine';
 import { totalScore } from '@/game/game';
 import Portrait from './Portrait';
 
+export interface DropHint {
+  kind: 'mate' | 'swap' | 'blocked';
+  text: string;
+}
+
 interface Props {
   ind: Individual;
   world: World;
   selected: boolean;
   focusable: boolean;
+  dragging: boolean;
+  hint: DropHint | null;
+  holdMs: number;
   onSelect: () => void;
+  onPointerDown: (e: React.PointerEvent) => void;
 }
 
-export default function IndividualCard({ ind, world, selected, focusable, onSelect }: Props) {
+export default function IndividualCard({ ind, world, selected, focusable, dragging, hint, holdMs, onSelect, onPointerDown }: Props) {
   const adult = world.isAdult(ind);
   const female = ind.sex === 'F';
 
@@ -21,18 +30,14 @@ export default function IndividualCard({ ind, world, selected, focusable, onSele
       data-card-id={ind.id}
       tabIndex={focusable ? 0 : -1}
       onClick={onSelect}
+      onPointerDown={onPointerDown}
       aria-pressed={selected}
-      className={`flex h-[168px] w-full flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
+      className={`relative flex h-[168px] w-full cursor-grab select-none flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
         selected ? 'border-accent ring-2 ring-accent/30' : 'border-line hover:border-accent/60'
-      }`}
+      } ${dragging ? 'opacity-40' : ''} ${hint?.kind === 'mate' ? 'border-female ring-2 ring-female/40' : ''}`}
     >
       <div className="relative size-[104px] shrink-0">
         <Portrait ind={ind} baby={!adult} size={104} decorative />
-        {ind.pregnancy && (
-          <span className="absolute right-1 top-1 rounded-full bg-female px-1.5 py-0.5 text-[10px] font-semibold text-white">
-            임신
-          </span>
-        )}
       </div>
       <div className="mt-2 w-full">
         <div className="flex h-5 items-center gap-1">
@@ -56,6 +61,16 @@ export default function IndividualCard({ ind, world, selected, focusable, onSele
           </span>
         </div>
       </div>
+      {hint && (
+        <span aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-panel/90 p-2 text-center text-xs font-semibold">
+          <span className={hint.kind === 'mate' ? 'text-female' : hint.kind === 'blocked' ? 'text-danger' : 'text-ink'}>{hint.text}</span>
+          {hint.kind === 'mate' && (
+            <span className="h-1.5 w-4/5 overflow-hidden rounded-full bg-[#ece5d8]">
+              <span className="hold-progress block h-full rounded-full bg-female" style={{ '--hold-ms': `${holdMs}ms` } as React.CSSProperties} />
+            </span>
+          )}
+        </span>
+      )}
     </button>
   );
 }

@@ -26,6 +26,8 @@ export interface RaceDef {
   stats: Record<Exclude<StatId, 'mana'>, [number, number]>;
   /** 임신 기간 (게임 일 수). 혼혈 엄마는 계보상 혈통 비율로 평균 후 반올림 */
   gestationDays: number;
+  /** 아기 단계(정보 숨김) 기간. 혼혈은 계보상 혈통 비율로 섞어서 반올림 */
+  babyDays: number;
   /** 기본 수정 확률. 부모 양쪽의 값을 평균하고 아빠 활력으로 보정 */
   fertility: number;
   /** 쌍둥이 확률. 세쌍둥이 = 쌍둥이 확률의 제곱 (헬린의 법칙) */
@@ -51,7 +53,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     fat: S(50), muscle: S(50), chest: S(50, 1.6), genital: S(50, 1.6),
     // 인간: 근력 특화, 개체차가 커서 어느 능력치든 튀는 개체가 나오기 쉬움
     stats: { vitality: S(51, 1.3), strength: S(57, 1.3), agility: S(50, 1.3), charm: S(49, 1.3) },
-    gestationDays: 2, fertility: 0.7, twinRate: 0.012,
+    gestationDays: 2, babyDays: 2, fertility: 0.7, twinRate: 0.012,
     babyFace: '인간 아기 얼굴',
     names: {
       F: ['클라라', '엘리자', '아델', '에밀리', '한나', '로잘린', '베아트리스', '마거릿', '에블린', '소피아', '올리비아', '아멜리아', '샬럿', '루시', '비비안', '헤이즐', '아이린', '플로라'],
@@ -69,7 +71,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     fat: S(44), muscle: S(45), chest: S(46, 1.6), genital: S(46, 1.6),
     // 엘프: 민첩, 매력 특화. 근력은 낮은 편
     stats: { vitality: S(46), strength: S(42), agility: S(61), charm: S(58) },
-    gestationDays: 3, fertility: 0.5, twinRate: 0.007,
+    gestationDays: 3, babyDays: 3, fertility: 0.5, twinRate: 0.007,
     babyFace: '엘프 아기 얼굴',
     names: {
       F: ['셀레스트', '아에린', '엘로웬', '리셀', '에일라', '나리엘', '페이웬', '아엘리스', '루미엔', '엘라나', '실레아', '미렌', '이살리', '오렐리아'],
@@ -87,7 +89,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     fat: S(52), muscle: S(50), chest: S(52, 1.6), genital: S(50, 1.6),
     // 인어: 활력, 매력 특화
     stats: { vitality: S(60), strength: S(46), agility: S(50), charm: S(56) },
-    gestationDays: 3, fertility: 0.55, twinRate: 0.007,
+    gestationDays: 3, babyDays: 3, fertility: 0.55, twinRate: 0.007,
     babyFace: '인어 아기 얼굴',
     names: {
       F: ['마리나', '코랄리', '네리사', '오셀리아', '시렌', '테티스', '나이아', '펄리', '에리나', '도리스', '토마시나', '아쿠아린', '세렌', '로렐라이'],

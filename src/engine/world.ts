@@ -84,11 +84,15 @@ export class World {
 
   // ─── 생애 단계 ───
   isAdult(ind: Individual): boolean {
-    return ind.source === 'market' || this.day - ind.bornDay >= CONFIG.babyDays;
+    return ind.source === 'market' || this.day - ind.bornDay >= this.babyDays(ind);
   }
 
   daysUntilAdult(ind: Individual): number {
-    return Math.max(0, CONFIG.babyDays - (this.day - ind.bornDay));
+    return ind.source === 'market' ? 0 : Math.max(0, this.babyDays(ind) - (this.day - ind.bornDay));
+  }
+
+  babyDays(ind: Individual): number {
+    return Math.max(1, Math.round(blendByRace(ind.pedigreeRace, (r) => RACES[r].babyDays)));
   }
 
   /** 아기 얼굴: 계보상 혈통 %가 가장 높은 종족, 동률이면 모계 */

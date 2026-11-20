@@ -1,18 +1,19 @@
 'use client';
 
-import { useId, useState } from 'react';
 import { SLOTS, STAT_NAMES, type Individual, type World } from '@/engine';
-import { SHOWN_STATS, pregnantCount, shownStat, totalScore, type GameState } from '@/game/game';
+import { SHOWN_STATS, STAT_MAX, shownStat, totalScore, type GameState } from '@/game/game';
 import Portrait from './Portrait';
 
 interface Props {
   ind: Individual;
   world: World;
   state: GameState;
-  onMate: (motherId: string, fatherId: string) => void;
+  shortcutsOn: boolean;
+  inBreeding: boolean;
+  onToBreeding: () => void;
 }
 
-export default function DetailPanel({ ind, world, state, onMate }: Props) {
+export default function DetailPanel({ ind, world, state, shortcutsOn, inBreeding, onToBreeding }: Props) {
   const adult = world.isAdult(ind);
   const p = ind.pheno;
   const mother = world.get(ind.motherId);
@@ -48,7 +49,7 @@ export default function DetailPanel({ ind, world, state, onMate }: Props) {
               <h3 id="stats-title" className="text-sm font-semibold">능력치</h3>
               <p className="text-sm">
                 종합 <b className="text-lg tabular-nums">{totalScore(ind)}</b>
-                <span className="text-xs text-mute"> / 80 (지능 추가 전)</span>
+                <span className="text-xs text-mute"> / 100</span>
               </p>
             </div>
             <ul className="flex flex-col gap-1.5">
@@ -58,9 +59,9 @@ export default function DetailPanel({ ind, world, state, onMate }: Props) {
                   <li key={k} className="flex items-center gap-2 text-sm">
                     <span className="w-9 text-mute">{STAT_NAMES[k]}</span>
                     <StatBar value={v} />
-                    <span className="w-14 text-right tabular-nums">
+                    <span className="w-16 text-right tabular-nums">
                       <b>{v}</b>
-                      <span className="text-xs text-mute"> / 20</span>
+                      <span className="text-xs text-mute"> / 100</span>
                     </span>
                   </li>
                 );
@@ -70,7 +71,7 @@ export default function DetailPanel({ ind, world, state, onMate }: Props) {
                 <span className="text-xs">엔진 v0.7에서 추가 예정</span>
               </li>
             </ul>
-            <p className="mt-2 text-xs text-mute">능력치는 0~20, 마켓 개체 평균은 10 안팎입니다.</p>
+            <p className="mt-2 text-xs text-mute">능력치는 1~100, 종합 점수는 능력치 평균입니다. 마켓 개체는 50 안팎.</p>
           </section>
 
           <section aria-labelledby="looks-title">
@@ -116,15 +117,14 @@ export default function DetailPanel({ ind, world, state, onMate }: Props) {
             </section>
           )}
 
-          {ind.sex === 'F' && <MatePanel ind={ind} world={world} state={state} onMate={onMate} />}
+          <BreedAction ind={ind} world={world} shortcutsOn={shortcutsOn} inBreeding={inBreeding} onToBreeding={onToBreeding} />
         </>
       )}
     </article>
   );
 }
 
-const STAT_MAX = 20;
-const TICKS = [5, 10, 15];
+const TICKS = [25, 50, 75];
 
 function StatBar({ value }: { value: number }) {
   return (
@@ -146,14 +146,13 @@ function Row({ label, value }: { label: string; value?: string }) {
   );
 }
 
-function MatePanel({ ind, world, state, onMate }: Props) {
-  const selectId = useId();
-  const hintId = useId();
-  const males = world.active().filter((x) => x.sex === 'M' && world.isAdult(x));
-  const [picked, setPicked] = useState('');
-  const fatherId = males.some((m) => m.id === picked) ? picked : (males[0]?.id ?? '');
-  const father = world.get(fatherId);
-
+function BreedAction({
+  ind,
+  world,
+  shortcutsOn,
+  inBreeding,
+  onToBreeding,
+}: Pick<Props, 'ind' | 'world' | 'shortcutsOn' | 'inBreeding' | 'onToBreeding'>) {
   if (ind.pregnancy) {
     return (
       <p className="rounded-xl border border-female/30 bg-[#fbeef3] p-3 text-sm">
@@ -161,47 +160,18 @@ function MatePanel({ ind, world, state, onMate }: Props) {
       </p>
     );
   }
-  if (!males.length) return <p className="text-sm text-mute">교배할 수 있는 성체 수컷이 없습니다.</p>;
-
-  const roomFull = pregnantCount(world) >= state.pregnancyRoom;
-  const reason = roomFull ? `임신실이 꽉 찼습니다 (${state.pregnancyRoom}칸)` : father ? world.canMate(ind, father) : '상대를 고르세요';
-  const chance = father && !reason ? Math.round(world.conceptionChance(ind, father) * 100) : null;
-  const kin = father ? world.kinship(ind, father) : 0;
-
   return (
-    <section aria-labelledby="mate-title" className="rounded-xl border border-line bg-white p-3">
-      <h3 id="mate-title" className="mb-2 text-sm font-semibold">교배</h3>
-      <label htmlFor={selectId} className="sr-only">교배 상대</label>
-      <select
-        id={selectId}
-        data-shortcut="mate-partner"
-        aria-keyshortcuts="P"
-        value={fatherId}
-        onChange={(e) => setPicked(e.target.value)}
-        className="h-10 w-full rounded-lg border border-line bg-white px-2 text-sm"
-      >
-        {males.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.name} · {m.raceLabel} · {totalScore(m)}점
-          </option>
-        ))}
-      </select>
-      <p className="mt-2 h-4 text-xs text-mute">
-        {chance !== null && `수정 확률 ${chance}%`}
-        {kin > 0 && <span className="ml-2 text-danger">근친 계수 {(kin * 100).toFixed(1)}%</span>}
-      </p>
-      <button
-        type="button"
-        data-shortcut="mate-submit"
-        aria-keyshortcuts="M"
-        disabled={!!reason}
-        aria-describedby={hintId}
-        onClick={() => onMate(ind.id, fatherId)}
-        className="mt-2 h-10 w-full rounded-lg bg-accent text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        교배 시도
-      </button>
-      <p id={hintId} className="mt-1.5 min-h-8 text-xs text-mute">{reason ?? ''}</p>
-    </section>
+    <button
+      type="button"
+      onClick={onToBreeding}
+      disabled={inBreeding}
+      aria-keyshortcuts={shortcutsOn ? 'E' : undefined}
+      className="flex h-10 items-center justify-center gap-2 rounded-lg border border-female/50 text-sm font-semibold text-female hover:bg-[#fbeef3] disabled:cursor-default disabled:opacity-60"
+    >
+      {inBreeding ? '교배 칸에 올라가 있음' : '교배 칸에 올리기'}
+      <kbd aria-hidden="true" className={`rounded border border-female/30 px-1.5 font-sans text-xs ${shortcutsOn && !inBreeding ? '' : 'invisible'}`}>
+        E
+      </kbd>
+    </button>
   );
 }
