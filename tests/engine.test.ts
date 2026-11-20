@@ -250,3 +250,33 @@ test('아기 단계: 인간 2일, 엘프 3일, 하프는 섞어서 반올림', (
   assert.ok(!w.isAdult(elf));
   assert.equal(w.daysUntilAdult(elf), 1);
 });
+
+test('마켓 매물: 사기 전엔 농장 밖, 사면 농장, 안 사면 지워짐', () => {
+  const w = new World(11);
+  const a = w.createMarketOffer('human', 'F');
+  const b = w.createMarketOffer('elf', 'M');
+  assert.equal(a.status, 'market');
+  assert.equal(w.active().length, 0);
+  w.acceptOffer(a.id);
+  assert.equal(w.active().length, 1);
+  w.discardOffers();
+  assert.equal(w.get(b.id), undefined);
+  assert.ok(w.get(a.id));
+});
+
+test('마켓 매물 옵션: 능력치 이동, 이형 강제, 초대 끄기', () => {
+  const w = new World(12);
+  const avg = (shift: number) => {
+    let s = 0;
+    for (let i = 0; i < 300; i++) s += w.createMarketOffer('human', 'F', { statShift: shift }).pheno.stats.charm;
+    w.discardOffers();
+    return s / 300;
+  };
+  assert.ok(avg(-15) < avg(0) - 10);
+  for (const m of ['pigment', 'oddEye', 'angel', 'devil'] as const) {
+    assert.ok(w.createMarketOffer('human', 'M', { morph: m }).pheno.morphs.length > 0, m);
+  }
+  for (let i = 0; i < 2000; i++) {
+    assert.equal(w.createMarketOffer('human', 'F', { naturalFounders: false }).foundedBloodlines.length, 0);
+  }
+});

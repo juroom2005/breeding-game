@@ -3,7 +3,7 @@
 // World는 내부 값이 바뀌는 객체라 state에 한 번만 넣고, 다시 그리기는 GameState 변경으로 일으킨다
 import { useEffect, useState } from 'react';
 import { World } from '@/engine';
-import { newGame, nextDay, setOrder, tryMate, withDefaults, type Difficulty, type GameState } from '@/game/game';
+import { buyOffer, ensureMarket, newGame, nextDay, refreshMarket, sellIndividual, setOrder, tryMate, upgradeFarm, withDefaults, type Difficulty, type GameState } from '@/game/game';
 import { loadGame, saveGame } from '@/game/storage';
 import TitleScreen from '@/components/TitleScreen';
 import FarmScreen from '@/components/FarmScreen';
@@ -38,9 +38,16 @@ export default function Home() {
 
   const resume = () => {
     if (!saved) return;
-    setWorld(World.load(saved.world));
-    setState(saved);
+    const w = World.load(saved.world);
+    setWorld(w);
+    commit(ensureMarket(saved, w));
     setScreen('farm');
+  };
+
+  const act = (fn: (s: GameState, w: World) => { state: GameState; ok: boolean; message: string }) => {
+    const r = fn(state!, world!);
+    commit(r.state);
+    return r;
   };
 
   if (screen === 'loading') return <main id="main" aria-busy="true" className="flex flex-1 items-center justify-center text-mute">불러오는 중…</main>;
@@ -60,6 +67,10 @@ export default function Home() {
         return r;
       }}
       onReorder={(order) => commit(setOrder(state, order))}
+      onBuy={(id) => act((s, w) => buyOffer(s, w, id))}
+      onSell={(id) => act((s, w) => sellIndividual(s, w, id))}
+      onUpgrade={() => act(upgradeFarm)}
+      onRefresh={() => act(refreshMarket)}
       onTitle={() => setScreen('title')}
     />
   );

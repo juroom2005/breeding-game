@@ -2,8 +2,8 @@ export type Sex = 'F' | 'M';
 export type RaceId = 'human' | 'elf' | 'mermaid';
 export type BloodlineId = 'magic' | 'fire' | 'ice';
 export type Source = 'market' | 'farm';
-/** active = 농장에 있음 / sold = 판매됨 / dead = 사망 (임무 중에만). 떠난 개체는 족보용 정보만 남는다 */
-export type Status = 'active' | 'sold' | 'dead';
+/** active = 농장에 있음 / market = 마켓 매물(아직 안 삼) / sold = 판매됨 / dead = 사망 (임무 중에만). 떠난 개체는 족보용 정보만 남는다 */
+export type Status = 'active' | 'market' | 'sold' | 'dead';
 
 /**
  * 대립유전자 하나.

@@ -9,7 +9,7 @@ import {
 } from './data/loci';
 import { RACES } from './data/races';
 import { BLOODLINES, BLOODLINE_IDS, NO_PATTERN, patternLocus } from './data/bloodlines';
-import { EXTRA_COLOR_LOCI, MORPHS, MORPH_ALLELE, MORPH_IDS, morphGroupId } from './data/morphs';
+import { EXTRA_COLOR_LOCI, MORPHS, MORPH_ALLELE, MORPH_IDS, morphGroupId, type MorphId } from './data/morphs';
 import { HAS, NOT, TRAITS, traitLocus } from './data/traits';
 
 const allele = (v: string | number, origin: string, race: RaceId): Allele => ({ v, origin, race, shownBy: null });
@@ -58,13 +58,26 @@ function founderAlleles(b: BloodlineId, owner: string, race: RaceId, rng: Rng): 
   return out;
 }
 
+export interface MarketGenomeOptions {
+  forceFounder?: BloodlineId[];
+  /** false면 초대가 저절로 생기지 않는다 (마켓 희귀 개체를 게임 쪽에서 직접 정할 때) */
+  naturalFounders?: boolean;
+  /** 능력치 평균을 이만큼 옮긴다 (0~100 단위). 마켓 개체마다 품질 편차를 주는 용도 */
+  statShift?: number;
+  /** 이 이형의 소인을 발현 문턱 바로 위로 올린다. 일반 이형 개체와 비슷하게 유전되도록 최대치까지는 올리지 않는다 */
+  morph?: MorphId;
+}
+
+const STAT_GROUP_IDS = new Set<string>(Object.values(STATS).map((s) => s.id));
+
 /** 마켓 1세대 유전형 */
 export function createMarketGenome(
   race: RaceId,
   id: string,
   rng: Rng,
-  forceFounder: BloodlineId[] = [],
+  opts: MarketGenomeOptions = {},
 ): { genome: Genome; founded: BloodlineId[] } {
+  const { forceFounder = [], naturalFounders = true, statShift = 0, morph } = opts;
   const r = RACES[race];
   const g: Genome = {};
   const mk = (v: string | number) => allele(v, id, race);
@@ -86,7 +99,8 @@ export function createMarketGenome(
 
   // 수치형
   for (const { group, dist } of ADDITIVE_FOR_RACE) {
-    const [mean, sd] = dist(race);
+    const [base, sd] = dist(race);
+    const mean = STAT_GROUP_IDS.has(group.id) ? base + statShift / (group.loci * 2) : base;
     for (let i = 0; i < group.loci; i++) {
       const v = () => clamp(rng.normal(mean, sd), 0, group.alleleMax);
       g[locusKey(group.id, i)] = pair(mk(v()), mk(v()));
@@ -98,7 +112,7 @@ export function createMarketGenome(
   for (const b of BLOODLINE_IDS) {
     const def = BLOODLINES[b];
     const grp = BLOODLINE_GROUPS[b];
-    if (forceFounder.includes(b) || rng.chance(def.marketFounderChance)) {
+    if (forceFounder.includes(b) || (naturalFounders && rng.chance(def.marketFounderChance))) {
       Object.assign(g, founderAlleles(b, id, race, rng));
       founded.push(b);
     } else {
@@ -112,8 +126,10 @@ export function createMarketGenome(
 
   // 이형 소인 (모든 개체가 갖고 있음, 대부분 낮음)
   for (const m of MORPH_IDS) {
+    const center = MORPHS[m].center / (MORPHS[m].loci * 2);
+    const mean = m === morph ? center + 0.15 : MORPH_ALLELE.mean;
     for (let i = 0; i < MORPHS[m].loci; i++) {
-      const v = () => clamp(rng.normal(MORPH_ALLELE.mean, MORPH_ALLELE.sd), 0, MORPH_ALLELE.max);
+      const v = () => clamp(rng.normal(mean, MORPH_ALLELE.sd), 0, MORPH_ALLELE.max);
       g[locusKey(morphGroupId(m), i)] = pair(mk(v()), mk(v()));
     }
   }

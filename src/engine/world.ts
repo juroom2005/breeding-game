@@ -6,8 +6,8 @@ import { CONFIG } from './data/config';
 import { RACES } from './data/races';
 import { BLOODLINE_IDS, BLOODLINES } from './data/bloodlines';
 import { TRAITS } from './data/traits';
-import { applyInbreeding, awakenFounder, breedGenome, createMarketGenome, DISCRETE_LOCI, geneticRace, morphChance } from './genome';
-import { MORPHS, MORPH_IDS } from './data/morphs';
+import { applyInbreeding, awakenFounder, breedGenome, createMarketGenome, DISCRETE_LOCI, geneticRace, morphChance, type MarketGenomeOptions } from './genome';
+import { CHOSEN_HYBRID_NAME, MORPHS, MORPH_IDS, PIGMENT, type MorphId } from './data/morphs';
 import { computePhenotype } from './phenotype';
 import { blendByRace, mainRaceOf, raceLabel } from './classify';
 import { decodeGenome, encodeGenome, type EncodedGenome } from './save';
@@ -102,9 +102,22 @@ export class World {
 
   // ─── 마켓 ───
   buyFromMarket(race: RaceId, sex: Sex, forceFounder: BloodlineId[] = []): Individual {
+    const ind = this.createMarketOffer(race, sex, { forceFounder });
+    ind.status = 'active';
+    return ind;
+  }
+
+  /**
+   * 마켓 매물: 농장에 들이기 전까지 status 'market'. 사면 acceptOffer, 안 사면 discardOffers로 지운다.
+   * morph를 주면 그 이형이 겉으로 드러날 때까지 겉모습을 다시 계산한다
+   */
+  createMarketOffer(race: RaceId, sex: Sex, opts: MarketGenomeOptions = {}): Individual {
     const id = this.newId();
-    const { genome, founded } = createMarketGenome(race, id, this.rng, forceFounder);
-    const pheno = this.phenoWithFounders(genome, sex, 0, founded, id, race);
+    const { genome, founded } = createMarketGenome(race, id, this.rng, opts);
+    let pheno = this.phenoWithFounders(genome, sex, 0, founded, id, race);
+    for (let i = 0; opts.morph && i < 200 && !morphShown(pheno.morphs, opts.morph); i++) {
+      pheno = this.phenoWithFounders(genome, sex, 0, founded, id, race);
+    }
     const houses: Individual['houses'] = {};
     for (const b of founded) houses[b] = { [id]: 1 };
     const ind: Individual = {
@@ -117,7 +130,7 @@ export class World {
       birthOrder: this.counter,
       bornDay: this.day,
       source: 'market',
-      status: 'active',
+      status: 'market',
       pedigreeRace: { [race]: 1 },
       raceLabel: RACES[race].name,
       coi: 0,
@@ -137,6 +150,21 @@ export class World {
     this.markShown(ind);
     this.individuals.set(id, ind);
     return ind;
+  }
+
+  acceptOffer(id: string): Individual | null {
+    const ind = this.individuals.get(id);
+    if (!ind || ind.status !== 'market') return null;
+    ind.status = 'active';
+    ind.bornDay = this.day;
+    return ind;
+  }
+
+  /** 팔리지 않은 매물은 기록에 남길 필요가 없어서 지운다 */
+  discardOffers(ids?: string[]) {
+    for (const [id, ind] of this.individuals) {
+      if (ind.status === 'market' && (!ids || ids.includes(id))) this.individuals.delete(id);
+    }
   }
 
   // ─── 교배 (임신) ───
@@ -536,4 +564,10 @@ export class World {
     }
     return w;
   }
+}
+
+function morphShown(morphs: string[], m: MorphId): boolean {
+  if (m === 'pigment') return morphs.includes(PIGMENT.albino.name) || morphs.includes(PIGMENT.leucistic.name);
+  if (m === 'oddEye') return morphs.includes(MORPHS.oddEye.name);
+  return morphs.includes(MORPHS[m].name) || morphs.includes(CHOSEN_HYBRID_NAME);
 }

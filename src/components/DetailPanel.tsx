@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState, type ReactNode } from 'react';
 import { SLOTS, STAT_NAMES, type Individual, type World } from '@/engine';
 import { SHOWN_STATS, STAT_MAX, shownStat, totalScore, type GameState } from '@/game/game';
 import Portrait from './Portrait';
@@ -8,12 +9,10 @@ interface Props {
   ind: Individual;
   world: World;
   state: GameState;
-  shortcutsOn: boolean;
-  inBreeding: boolean;
-  onToBreeding: () => void;
+  actions?: ReactNode;
 }
 
-export default function DetailPanel({ ind, world, state, shortcutsOn, inBreeding, onToBreeding }: Props) {
+export default function DetailPanel({ ind, world, state, actions }: Props) {
   const adult = world.isAdult(ind);
   const p = ind.pheno;
   const mother = world.get(ind.motherId);
@@ -32,11 +31,13 @@ export default function DetailPanel({ ind, world, state, shortcutsOn, inBreeding
           </p>
           <h2 id="detail-name" className="truncate text-2xl font-bold">{ind.name}</h2>
           <p className="text-sm text-mute">
-            {ind.raceLabel} · {ind.generation}세대 · {ind.source === 'market' ? '마켓 출신' : `${state.farmName} 출신`}
+            {ind.raceLabel} · {ind.generation}세대 · {ind.status === 'market' ? '마켓 매물' : ind.source === 'market' ? '마켓 출신' : `${state.farmName} 출신`}
           </p>
           <p className="h-4 text-xs text-mute">{(mother || father) && `부모: ${mother?.name ?? '?'} × ${father?.name ?? '?'}`}</p>
         </div>
       </header>
+
+      {actions && <div className="flex flex-col gap-2">{actions}</div>}
 
       {!adult ? (
         <p className="rounded-xl bg-[#efe9dd] p-4 text-sm text-mute">
@@ -117,7 +118,6 @@ export default function DetailPanel({ ind, world, state, shortcutsOn, inBreeding
             </section>
           )}
 
-          <BreedAction ind={ind} world={world} shortcutsOn={shortcutsOn} inBreeding={inBreeding} onToBreeding={onToBreeding} />
         </>
       )}
     </article>
@@ -146,13 +146,20 @@ function Row({ label, value }: { label: string; value?: string }) {
   );
 }
 
-function BreedAction({
+export function BreedAction({
   ind,
   world,
   shortcutsOn,
   inBreeding,
   onToBreeding,
-}: Pick<Props, 'ind' | 'world' | 'shortcutsOn' | 'inBreeding' | 'onToBreeding'>) {
+}: {
+  ind: Individual;
+  world: World;
+  shortcutsOn: boolean;
+  inBreeding: boolean;
+  onToBreeding: () => void;
+}) {
+  if (!world.isAdult(ind)) return null;
   if (ind.pregnancy) {
     return (
       <p className="rounded-xl border border-female/30 bg-[#fbeef3] p-3 text-sm">
@@ -173,5 +180,49 @@ function BreedAction({
         E
       </kbd>
     </button>
+  );
+}
+
+/** 실수로 팔지 않게 두 번 눌러야 판다. 버튼 크기는 상태와 상관없이 같다 */
+export function ConfirmButton({
+  label,
+  confirmLabel,
+  disabledReason,
+  tone = 'neutral',
+  onConfirm,
+}: {
+  label: string;
+  confirmLabel: string;
+  disabledReason?: string | null;
+  tone?: 'neutral' | 'accent';
+  onConfirm: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [armed]);
+  const base = tone === 'accent' ? 'bg-accent text-white border-accent' : 'border-line text-ink hover:border-accent';
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={!!disabledReason}
+        onClick={() => {
+          if (armed) {
+            setArmed(false);
+            onConfirm();
+          } else setArmed(true);
+        }}
+        onBlur={() => setArmed(false)}
+        className={`h-10 w-full rounded-lg border text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${armed ? 'border-danger bg-danger text-white' : base}`}
+      >
+        {armed ? confirmLabel : label}
+      </button>
+      <p className="mt-1 h-4 text-xs text-mute" aria-live="polite">
+        {disabledReason ?? (armed ? '한 번 더 누르면 확정됩니다' : '')}
+      </p>
+    </div>
   );
 }

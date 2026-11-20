@@ -5,6 +5,8 @@ export interface Shortcut {
 
 export const FARM_SHORTCUTS: Shortcut[] = [
   { keys: ['N'], label: '다음 날' },
+  { keys: ['1', '2'], label: '농장 / 마켓 화면' },
+  { keys: ['R'], label: '마켓 새로고침 (마켓 화면)' },
   { keys: ['←', '→', '↑', '↓'], label: '개체 목록에서 이동 (목록에 포커스가 있을 때)' },
   { keys: ['Shift', '+ 방향키'], label: '선택한 개체 자리 옮기기 (목록에 포커스가 있을 때)' },
   { keys: ['[', ']'], label: '이전 / 다음 개체 선택' },

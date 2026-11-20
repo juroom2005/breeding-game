@@ -1,5 +1,8 @@
 import { josa } from './josa';
-import { World, type SaveData, type Individual, type StatId } from '@/engine';
+import { World, type SaveData, type Individual } from '@/engine';
+import { totalScore } from './stats';
+import { buyPrice, sellPrice, slotUpgradeCost } from './economy';
+import { MARKET, marketSeed, restock, type MarketState } from './market';
 
 export type Difficulty = 'casual' | 'normal';
 
@@ -23,7 +26,7 @@ export const RULES = {
 export interface LogEntry {
   day: number;
   text: string;
-  kind: 'info' | 'birth' | 'mate' | 'adult';
+  kind: 'info' | 'birth' | 'mate' | 'adult' | 'trade';
 }
 
 export interface GameState {
@@ -35,19 +38,13 @@ export interface GameState {
   pregnancyRoom: number;
   /** 농장 화면에서 플레이어가 끌어서 정한 개체 순서 */
   order: string[];
+  farmUpgrades: number;
+  market: MarketState;
   log: LogEntry[];
   world: SaveData;
 }
 
-export const STAT_MAX = 100;
-export const SHOWN_STATS: StatId[] = ['vitality', 'strength', 'agility', 'charm'];
-export const shownStat = (v: number) => Math.max(1, Math.round(v));
-
-/** 능력치 평균 (1~100). 지능이 들어오면 SHOWN_STATS에 추가만 하면 된다 */
-export function totalScore(ind: Individual): number {
-  const sum = SHOWN_STATS.reduce((s, k) => s + ind.pheno.stats[k], 0);
-  return Math.max(1, Math.round(sum / SHOWN_STATS.length));
-}
+export { STAT_MAX, SHOWN_STATS, shownStat, totalScore } from './stats';
 
 /** 시작 개체가 조건(보통 스탯, 보통 트레잇)에 맞을 때까지 새 World로 다시 뽑는다. 버린 개체가 기록에 남지 않게 하려는 것 */
 export function newGame(farmName: string, difficulty: Difficulty): { state: GameState; world: World } {
@@ -68,6 +65,8 @@ export function newGame(farmName: string, difficulty: Difficulty): { state: Game
       farmSlots: RULES.farmSlots,
       pregnancyRoom: RULES.pregnancyRoom,
       order: [f.id, m.id],
+      farmUpgrades: 0,
+      market: restock(world, undefined, marketSeed(world.seed, world.day, 0)),
       log: [{ day: world.day, text: `${farmName.trim() || '농장'}의 첫날. ${josa(f.name, '와/과')} ${josa(m.name, '이/가')} 농장에 왔습니다.`, kind: 'info' }],
       world: world.serialize(),
     };
@@ -80,13 +79,78 @@ export function pregnantCount(world: World): number {
   return world.active().filter((x) => x.pregnancy).length;
 }
 
-/** 임신한 개체는 임신실에 있으므로 농장 칸을 차지하지 않는다 */
+/** 임신실에 있는 개체도 농장 칸을 차지한다 */
 export function farmCount(world: World): number {
-  return world.active().filter((x) => !x.pregnancy).length;
+  return world.active().length;
 }
 
 export function withDefaults(s: GameState): GameState {
-  return { ...s, order: s.order ?? [] };
+  return { ...s, order: s.order ?? [], farmUpgrades: s.farmUpgrades ?? 0 };
+}
+
+/** 이어하기 직후나 날짜가 바뀐 뒤 매물이 없으면 채운다 */
+export function ensureMarket(state: GameState, world: World): GameState {
+  if (state.market && state.market.day === world.day) return state;
+  const market = restock(world, state.market, marketSeed(world.seed, world.day, 0));
+  return { ...state, market, world: world.serialize() };
+}
+
+type Result = { state: GameState; ok: boolean; message: string };
+
+const addLog = (state: GameState, world: World, text: string, kind: LogEntry['kind']): LogEntry[] =>
+  [...state.log, { day: world.day, text, kind }].slice(-200);
+
+export function refreshMarket(state: GameState, world: World): Result {
+  const used = state.market.day === world.day ? state.market.refreshesUsed : 0;
+  if (used >= MARKET.refreshesPerDay) return { state, ok: false, message: '오늘은 새로고침을 다 썼습니다' };
+  const market = { ...restock(world, state.market, marketSeed(world.seed, world.day, used + 1)), refreshesUsed: used + 1 };
+  return { state: { ...state, market, world: world.serialize() }, ok: true, message: `새 매물이 들어왔습니다 (남은 새로고침 ${MARKET.refreshesPerDay - used - 1}회)` };
+}
+
+export function buyOffer(state: GameState, world: World, id: string): Result {
+  const ind = world.get(id);
+  if (!ind || ind.status !== 'market') return { state, ok: false, message: '이미 팔린 매물입니다' };
+  const price = buyPrice(ind, world);
+  if (state.gold < price) return { state, ok: false, message: `골드가 부족합니다 (${price.toLocaleString()}g 필요)` };
+  if (farmCount(world) >= state.farmSlots) return { state, ok: false, message: '농장 칸이 꽉 찼습니다. 팔거나 칸을 늘리세요' };
+  world.acceptOffer(id);
+  const offers = state.market.offers.map((o) => (o === id ? null : o));
+  const text = `${josa(ind.name, '을/를')} ${price.toLocaleString()}g에 샀습니다`;
+  return {
+    state: { ...state, gold: state.gold - price, order: [...state.order, id], market: { ...state.market, offers }, log: addLog(state, world, text, 'trade'), world: world.serialize() },
+    ok: true,
+    message: text,
+  };
+}
+
+export function sellIndividual(state: GameState, world: World, id: string): Result {
+  const ind = world.get(id);
+  if (!ind) return { state, ok: false, message: '개체를 찾을 수 없습니다' };
+  const price = sellPrice(ind, world);
+  const err = world.sell(id);
+  if (err) return { state, ok: false, message: err };
+  const text = `${josa(ind.name, '을/를')} ${price.toLocaleString()}g에 팔았습니다`;
+  return {
+    state: { ...state, gold: state.gold + price, order: state.order.filter((o) => o !== id), log: addLog(state, world, text, 'trade'), world: world.serialize() },
+    ok: true,
+    message: text,
+  };
+}
+
+export function upgradeFarm(state: GameState, world: World): Result {
+  const cost = slotUpgradeCost(state.farmUpgrades);
+  if (state.gold < cost) return { state, ok: false, message: `골드가 부족합니다 (${cost.toLocaleString()}g 필요)` };
+  const text = `농장 칸을 ${state.farmSlots + 1}칸으로 늘렸습니다 (${cost.toLocaleString()}g)`;
+  return {
+    state: { ...state, gold: state.gold - cost, farmSlots: state.farmSlots + 1, farmUpgrades: state.farmUpgrades + 1, log: addLog(state, world, text, 'trade') },
+    ok: true,
+    message: text,
+  };
+}
+
+/** 농장 칸을 넘으면 다음 날로 넘어갈 수 없다 (팔거나 칸을 늘려야 함) */
+export function overflow(state: GameState, world: World): number {
+  return Math.max(0, farmCount(world) - state.farmSlots);
 }
 
 export function setOrder(state: GameState, order: string[]): GameState {
@@ -94,6 +158,7 @@ export function setOrder(state: GameState, order: string[]): GameState {
 }
 
 export function nextDay(state: GameState, world: World): GameState {
+  if (overflow(state, world) > 0) return state;
   const log = [...state.log];
   const births = world.advanceDay();
   for (const ev of births) {
@@ -107,7 +172,10 @@ export function nextDay(state: GameState, world: World): GameState {
     }
   }
   const born = births.flatMap((ev) => ev.children.map((c) => c.id));
-  return { ...state, order: [...state.order, ...born], log: log.slice(-200), world: world.serialize() };
+  const over = overflow(state, world);
+  if (over > 0) log.push({ day: world.day, text: `농장 칸이 ${over}칸 모자랍니다. 개체를 팔거나 칸을 늘려야 다음 날로 넘어갈 수 있습니다`, kind: 'info' });
+  const market = restock(world, state.market, marketSeed(world.seed, world.day, 0));
+  return { ...state, order: [...state.order, ...born], market, log: log.slice(-200), world: world.serialize() };
 }
 
 /** 교배할 수 없으면 이유, 할 수 있으면 null */

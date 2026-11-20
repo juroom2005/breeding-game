@@ -1,9 +1,9 @@
 export * from './types';
 export { Rng } from './rng';
 export { World, type SaveData, type MateResult, type BirthEvent } from './world';
-export { raceLabel, mainRaceOf } from './classify';
-export { geneticRace, geneticSum, morphScore, morphChance } from './genome';
-export { MORPHS, MORPH_IDS, CHOSEN_HYBRID_NAME } from './data/morphs';
+export { raceLabel, mainRaceOf, blendByRace } from './classify';
+export { geneticRace, geneticSum, morphScore, morphChance, type MarketGenomeOptions } from './genome';
+export { MORPHS, MORPH_IDS, CHOSEN_HYBRID_NAME, type MorphId } from './data/morphs';
 export { CONFIG, inbreedingStatPenalty } from './data/config';
 export { RACES, RACE_IDS } from './data/races';
 export { BLOODLINES, BLOODLINE_IDS, COMBOS } from './data/bloodlines';
