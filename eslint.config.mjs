@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 밸런스 시뮬레이션 스크립트는 게임 코드가 아니라서 검사에서 뺀다
+    "sim/**",
   ]),
 ]);
 

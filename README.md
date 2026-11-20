@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 브리딩 게임 (가제)
 
-## Getting Started
+인간, 엘프, 인어를 교배하며 혈통을 키우는 싱글 플레이 브리딩 게임.
+Next.js + TypeScript, 서버 없이 정적 파일로 내보내서 인디게임 사이트에 올리는 것을 목표로 한다.
 
-First, run the development server:
+## 실행
+
+처음 한 번:
+
+```bash
+npm install
+```
+
+개발 서버 (코드를 고치면 바로 반영):
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 http://localhost:3000 을 연다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+그 밖의 명령:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build      # 배포용 정적 파일을 out/ 폴더에 만든다
+npm run lint       # 코드 검사
+npm test           # 유전 엔진 자동 테스트
+npm run sim:farm   # 농장 밸런스 시뮬레이션 (150일)
+```
 
-## Learn More
+## 폴더
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/            Next.js 진입점 (page.tsx가 화면 전환과 저장 담당)
+  components/     화면 조각 (타이틀, 농장, 개체 카드, 상세 패널, 임시 초상화)
+  game/           게임 규칙: 돈, 슬롯, 난이도, 기록, 저장(IndexedDB), 색표
+  engine/         유전 엔진 (화면과 분리된 순수 TypeScript, 외부 의존성 없음)
+tests/            엔진 자동 테스트
+sim/              밸런스 시뮬레이션 스크립트 (게임에 포함되지 않음)
+docs/             엔진 설명서 (engine-README.md, engine-HANDOFF.md)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+엔진은 `src/engine`이 원본이다. 엔진을 고치면 `npm test`로 확인한다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 지금 되는 것 (0.1)
 
-## Deploy on Vercel
+- 타이틀: 새 게임 / 이어하기
+- 새 농장: 농장 이름, 난이도 (즐기는 모드 / 일반 모드)
+- 농장: 인간 남녀 한 쌍과 500g으로 시작, 농장 10칸, 임신실 2칸
+- 개체 카드 (임시 초상화), 상세 정보 (능력치 0~20, 외모, 트레잇, 유전 메모)
+- 교배 시도, 다음 날, 출산, 아기 단계 (정보 숨김)
+- 농장 기록
+- 자동 저장 (브라우저 IndexedDB)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 아직 안 되는 것
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 마켓 (구매/판매), 임무, 의뢰, 도감, 농장 관리(업그레이드)
+- 돈: 유지비, 세금, 대출
+- 엔진 v0.7 변경: 지능 스탯, 유전 편차 상향 + 도약 돌연변이, 종족별 번식 수치(하루 시도 횟수, 출산 후 쉬는 기간, 아기 기간), 성격
+- 실제 그림 (지금은 SVG 임시 초상화. `src/components/Portrait.tsx`만 바꾸면 됨)
+
+## 엔진에서 바뀐 점 (v0.6 → 이 저장소)
+
+- 이름 후보를 성별로 나눔 (`data/races.ts`의 `names.F`, `names.M`)

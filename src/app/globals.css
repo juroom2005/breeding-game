@@ -1,26 +1,22 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 게임 색 (임시). 나중에 그림체에 맞춰 바꾸면 된다 */
+@theme {
+  --color-paper: #f6f1e7;
+  --color-panel: #fffdf8;
+  --color-ink: #2b2621;
+  --color-mute: #7a7065;
+  --color-line: #e6ddcd;
+  --color-accent: #6b4fbf;
+  --color-accent-soft: #ece7fa;
+  --color-gold: #b8860b;
+  --color-female: #c2477a;
+  --color-male: #3a6fb5;
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
 }
