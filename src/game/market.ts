@@ -20,7 +20,7 @@ export interface MarketState {
 
 const MORPH_POOL: MorphId[] = ['pigment', 'oddEye', 'angel', 'devil'];
 
-function raceAverage(race: RaceId): number {
+export function raceAverage(race: RaceId): number {
   const stats = RACES[race].stats as Record<string, [number, number]>;
   return SHOWN_STATS.reduce((s, k) => s + stats[k][0] * 12, 0) / SHOWN_STATS.length;
 }

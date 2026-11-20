@@ -15,6 +15,8 @@ export const FARM_SHORTCUTS: Shortcut[] = [
   { keys: ['S'], label: '정렬 기준 바꾸기' },
   { keys: ['L'], label: '개체 목록으로 이동' },
   { keys: ['D'], label: '상세 정보로 이동' },
+  { keys: ['P'], label: '선택한 개체의 족보 보기' },
+  { keys: ['F2'], label: '디버그 리모컨 열기/닫기 (디버그가 켜져 있을 때)' },
   { keys: ['?'], label: '단축키 도움말' },
 ];
 

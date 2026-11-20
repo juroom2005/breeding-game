@@ -11,9 +11,11 @@ interface Props {
   world: World;
   state: GameState;
   actions?: ReactNode;
+  onPedigree?: () => void;
+  shortcutsOn?: boolean;
 }
 
-export default function DetailPanel({ ind, world, state, actions }: Props) {
+export default function DetailPanel({ ind, world, state, actions, onPedigree, shortcutsOn }: Props) {
   const adult = world.isAdult(ind);
   const p = ind.pheno;
   const mother = world.get(ind.motherId);
@@ -31,12 +33,25 @@ export default function DetailPanel({ ind, world, state, actions }: Props) {
             {ind.sex === 'F' ? '여성' : '남성'}
           </p>
           <h2 id="detail-name" className="truncate text-2xl font-bold">{ind.name}</h2>
-          <p className="text-sm text-mute">
+          <p className="truncate text-sm text-mute">
             {ind.raceLabel} · {ind.generation}세대 · {ind.status === 'market' ? '마켓 매물' : ind.source === 'market' ? '마켓 출신' : `${state.farmName} 출신`}
           </p>
-          <p className="h-4 text-xs text-mute">{(mother || father) && `부모: ${mother?.name ?? '?'} × ${father?.name ?? '?'}`}</p>
+          <p className="h-4 truncate text-xs text-mute">{(mother || father) && `부모: ${mother?.name ?? '?'} × ${father?.name ?? '?'}`}</p>
           <p className="h-4 text-xs text-mute tabular-nums">하루 유지비 {upkeepOf(ind, world)}g</p>
         </div>
+        {onPedigree && (
+          <button
+            type="button"
+            onClick={onPedigree}
+            aria-keyshortcuts={shortcutsOn ? 'P' : undefined}
+            className="ml-auto flex h-8 w-16 shrink-0 items-center justify-center gap-1 self-start rounded-lg border border-line text-xs font-semibold hover:border-accent"
+          >
+            족보
+            <kbd aria-hidden="true" className={`rounded border border-line px-1 font-sans text-[10px] ${shortcutsOn ? '' : 'invisible'}`}>
+              P
+            </kbd>
+          </button>
+        )}
       </header>
 
       {actions && <div className="flex flex-col gap-2">{actions}</div>}

@@ -158,14 +158,20 @@ export function setOrder(state: GameState, order: string[]): GameState {
   return { ...state, order };
 }
 
-export function nextDay(state: GameState, world: World): GameState {
-  if (state.gameOver || overflow(state, world) > 0) return state;
+/** free, ignoreOverflow는 디버그 리모컨 전용 */
+export interface DayOptions {
+  free?: boolean;
+  ignoreOverflow?: boolean;
+}
+
+export function nextDay(state: GameState, world: World, opts: DayOptions = {}): GameState {
+  if (state.gameOver || (!opts.ignoreOverflow && overflow(state, world) > 0)) return state;
   const log = [...state.log];
-  const upkeep = dailyUpkeep(world);
+  const upkeep = opts.free ? 0 : dailyUpkeep(world);
   const births = world.advanceDay();
   let gold = state.gold - upkeep;
   let gameOver: GameState['gameOver'];
-  if (world.day % ECONOMY.tax.monthDays === 0) {
+  if (!opts.free && world.day % ECONOMY.tax.monthDays === 0) {
     const month = world.day / ECONOMY.tax.monthDays;
     const tax = taxFor(month);
     if (state.difficulty === 'normal' && gold < tax) {

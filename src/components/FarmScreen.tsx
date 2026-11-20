@@ -14,6 +14,7 @@ import BreedingPanel from './BreedingPanel';
 import PregnancyRoom from './PregnancyRoom';
 import ShortcutHelp from './ShortcutHelp';
 import GameOverDialog from './GameOverDialog';
+import PedigreeDialog from './PedigreeDialog';
 import Portrait from './Portrait';
 import { useCardDrag } from './useCardDrag';
 
@@ -57,6 +58,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
   const [sort, setSort] = useState<SortKey>('custom');
   const [toast, setToast] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+  const [pedigreeId, setPedigreeId] = useState<string | null>(null);
   const [shortcutsOn, setShortcutsOn] = useState(loadShortcutsEnabled);
   const [announce, setAnnounce] = useState('');
   const [motherId, setMotherId] = useState<string | null>(null);
@@ -134,7 +136,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
     setSelectedId(id);
     const card = document.getElementById(`card-${id}`);
     card?.scrollIntoView({ block: 'nearest' });
-    if (moveFocus) card?.focus();
+    if (moveFocus) (card ?? detailRef.current)?.focus();
   };
 
   const mate = (m: Individual, f: Individual) => {
@@ -218,7 +220,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (helpOpen || state.gameOver || e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
+      if (helpOpen || pedigreeId || state.gameOver || e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
       if (e.key === '?') {
         e.preventDefault();
         setHelpOpen(true);
@@ -230,6 +232,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
       else if (key === '1') setView('farm');
       else if (key === '2') setView('market');
       else if (key === 'd') detailRef.current?.focus();
+      else if (key === 'p' && view === 'farm' && selected) setPedigreeId(selected.id);
       else if (view === 'market') {
         if (key === 'r') run(onRefresh());
         else return;
@@ -489,6 +492,8 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
                 ind={selected}
                 world={world}
                 state={state}
+                shortcutsOn={shortcutsOn}
+                onPedigree={view === 'farm' ? () => setPedigreeId(selected.id) : undefined}
                 actions={
                   view === 'market' ? (
                     <ConfirmButton
@@ -549,6 +554,18 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
       </p>
       {state.gameOver && (
         <GameOverDialog open day={state.gameOver.day} reason={state.gameOver.reason} farmName={state.farmName} onTitle={onTitle} />
+      )}
+      {pedigreeId && (
+        <PedigreeDialog
+          key={pedigreeId}
+          rootId={pedigreeId}
+          world={world}
+          onClose={() => setPedigreeId(null)}
+          onShow={(id) => {
+            setView('farm');
+            requestAnimationFrame(() => select(id, true));
+          }}
+        />
       )}
       <ShortcutHelp open={helpOpen} enabled={shortcutsOn} onEnabledChange={setShortcuts} onClose={() => setHelpOpen(false)} />
       <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2">

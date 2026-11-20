@@ -7,6 +7,7 @@ import { buyOffer, ensureMarket, newGame, nextDay, refreshMarket, sellIndividual
 import { loadGame, saveGame } from '@/game/storage';
 import TitleScreen from '@/components/TitleScreen';
 import FarmScreen from '@/components/FarmScreen';
+import DebugRemote from '@/debug/DebugRemote';
 
 type Screen = 'loading' | 'title' | 'farm';
 
@@ -56,7 +57,14 @@ export default function Home() {
     return <TitleScreen hasSave={!!saved} onContinue={resume} onNewGame={start} />;
   }
 
+  const loadSave = (s: GameState) => {
+    const w = World.load(s.world);
+    setWorld(w);
+    commit(ensureMarket(withDefaults(s), w));
+  };
+
   return (
+    <>
     <FarmScreen
       state={state}
       world={world}
@@ -73,5 +81,7 @@ export default function Home() {
       onRefresh={() => act(refreshMarket)}
       onTitle={() => setScreen('title')}
     />
+    <DebugRemote state={state} world={world} commit={commit} onLoad={loadSave} />
+    </>
   );
 }
