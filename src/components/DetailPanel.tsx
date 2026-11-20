@@ -57,12 +57,10 @@ export default function DetailPanel({ ind, world, state, onMate }: Props) {
                 return (
                   <li key={k} className="flex items-center gap-2 text-sm">
                     <span className="w-9 text-mute">{STAT_NAMES[k]}</span>
-                    <span aria-hidden="true" className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#ece5d8]">
-                      <span className="block h-full rounded-full bg-accent" style={{ width: `${(v / 20) * 100}%` }} />
-                    </span>
-                    <span className="w-12 text-right font-semibold tabular-nums">
-                      {v}
-                      <span className="sr-only"> / 20</span>
+                    <StatBar value={v} />
+                    <span className="w-14 text-right tabular-nums">
+                      <b>{v}</b>
+                      <span className="text-xs text-mute"> / 20</span>
                     </span>
                   </li>
                 );
@@ -72,6 +70,7 @@ export default function DetailPanel({ ind, world, state, onMate }: Props) {
                 <span className="text-xs">엔진 v0.7에서 추가 예정</span>
               </li>
             </ul>
+            <p className="mt-2 text-xs text-mute">능력치는 0~20, 마켓 개체 평균은 10 안팎입니다.</p>
           </section>
 
           <section aria-labelledby="looks-title">
@@ -124,6 +123,20 @@ export default function DetailPanel({ ind, world, state, onMate }: Props) {
   );
 }
 
+const STAT_MAX = 20;
+const TICKS = [5, 10, 15];
+
+function StatBar({ value }: { value: number }) {
+  return (
+    <span aria-hidden="true" className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-[#ece5d8]">
+      <span className="block h-full rounded-full bg-accent" style={{ width: `${(value / STAT_MAX) * 100}%` }} />
+      {TICKS.map((t) => (
+        <span key={t} className="absolute top-0 h-full w-px bg-white/70" style={{ left: `${(t / STAT_MAX) * 100}%` }} />
+      ))}
+    </span>
+  );
+}
+
 function Row({ label, value }: { label: string; value?: string }) {
   return (
     <>
@@ -161,6 +174,8 @@ function MatePanel({ ind, world, state, onMate }: Props) {
       <label htmlFor={selectId} className="sr-only">교배 상대</label>
       <select
         id={selectId}
+        data-shortcut="mate-partner"
+        aria-keyshortcuts="P"
         value={fatherId}
         onChange={(e) => setPicked(e.target.value)}
         className="h-10 w-full rounded-lg border border-line bg-white px-2 text-sm"
@@ -177,6 +192,8 @@ function MatePanel({ ind, world, state, onMate }: Props) {
       </p>
       <button
         type="button"
+        data-shortcut="mate-submit"
+        aria-keyshortcuts="M"
         disabled={!!reason}
         aria-describedby={hintId}
         onClick={() => onMate(ind.id, fatherId)}

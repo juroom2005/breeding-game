@@ -1,10 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { World } from '@/engine';
 import { DIFFICULTY_LABEL, pregnantCount, totalScore, type GameState } from '@/game/game';
+import { isTypingTarget, loadShortcutsEnabled, saveShortcutsEnabled } from '@/game/shortcuts';
 import IndividualCard from './IndividualCard';
 import DetailPanel from './DetailPanel';
+import ShortcutHelp from './ShortcutHelp';
 
 interface Props {
   state: GameState;
@@ -29,7 +31,12 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
   const [selectedId, setSelectedId] = useState<string | null>(all[0]?.id ?? null);
   const [sort, setSort] = useState<SortKey>('born');
   const [toast, setToast] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [shortcutsOn, setShortcutsOn] = useState(loadShortcutsEnabled);
+  const [announce, setAnnounce] = useState('');
   const toastTimer = useRef<number | undefined>(undefined);
+  const listRef = useRef<HTMLUListElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const selected = selectedId ? world.get(selectedId) : undefined;
 
   const list = [...all].sort((a, b) => {
@@ -47,6 +54,64 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
     toastTimer.current = window.setTimeout(() => setToast(''), 2400);
   };
 
+  const focusedId = list.some((x) => x.id === selectedId) ? selectedId : list[0]?.id;
+
+  const select = (id: string, moveFocus: boolean) => {
+    setSelectedId(id);
+    const card = document.getElementById(`card-${id}`);
+    card?.scrollIntoView({ block: 'nearest' });
+    if (moveFocus) card?.focus();
+  };
+
+  const onListKey = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    if (!list.length || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const items = Array.from(listRef.current?.children ?? []) as HTMLElement[];
+    const cols = Math.max(1, items.filter((el) => el.offsetTop === items[0]?.offsetTop).length);
+    const i = Math.max(0, list.findIndex((x) => x.id === focusedId));
+    const step: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols };
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : Math.min(list.length - 1, Math.max(0, i + step[e.key]));
+    select(list[next].id, true);
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (helpOpen || e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
+      if (e.key === '?') {
+        e.preventDefault();
+        setHelpOpen(true);
+        return;
+      }
+      if (!shortcutsOn) return;
+      const key = e.key.toLowerCase();
+      const click = (name: string) => document.querySelector<HTMLElement>(`[data-shortcut="${name}"]:not([disabled])`);
+      if (key === 'n') onNextDay();
+      else if (key === 's') setSort((s) => SORTS[(SORTS.findIndex(([k]) => k === s) + 1) % SORTS.length][0]);
+      else if (key === 'l') document.getElementById(`card-${focusedId}`)?.focus();
+      else if (key === 'd') detailRef.current?.focus();
+      else if (key === 'p') click('mate-partner')?.focus();
+      else if (key === 'm') {
+        const btn = click('mate-submit');
+        if (btn) btn.click();
+        else showToast('지금은 교배할 수 없습니다');
+      } else if (e.key === '[' || e.key === ']') {
+        if (!list.length) return;
+        const i = Math.max(0, list.findIndex((x) => x.id === selectedId));
+        const next = list[(i + (e.key === ']' ? 1 : -1) + list.length) % list.length];
+        select(next.id, false);
+        setAnnounce(`${next.name} 선택`);
+      } else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const setShortcuts = (on: boolean) => {
+    setShortcutsOn(on);
+    saveShortcutsEnabled(on);
+  };
+
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <header className="shrink-0 border-b border-line bg-panel">
@@ -62,11 +127,27 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
             <Stat label="임신실" value={`${pregnantCount(world)} / ${state.pregnancyRoom}`} />
           </dl>
           <div className="ml-auto flex items-center gap-2">
-            <button type="button" onClick={onTitle} className="h-11 rounded-xl border border-line px-4 text-sm hover:border-accent">
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              aria-keyshortcuts="?"
+              className="h-11 w-20 rounded-xl border border-line text-sm hover:border-accent"
+            >
+              단축키
+            </button>
+            <button type="button" onClick={onTitle} className="h-11 w-20 rounded-xl border border-line text-sm hover:border-accent">
               타이틀
             </button>
-            <button type="button" onClick={onNextDay} className="h-11 w-32 rounded-xl bg-accent font-semibold text-white shadow-sm hover:opacity-90">
-              다음 날 <span aria-hidden="true">→</span>
+            <button
+              type="button"
+              onClick={onNextDay}
+              aria-keyshortcuts={shortcutsOn ? 'N' : undefined}
+              className="flex h-11 w-36 items-center justify-center gap-2 rounded-xl bg-accent font-semibold text-white shadow-sm hover:opacity-90"
+            >
+              다음 날
+              <kbd aria-hidden="true" className={`rounded bg-white/20 px-1.5 font-sans text-xs ${shortcutsOn ? '' : 'invisible'}`}>
+                N
+              </kbd>
             </button>
           </div>
         </div>
@@ -110,10 +191,23 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
               ))}
             </div>
           </div>
-          <ul className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 lg:overflow-y-auto lg:pr-1 lg:[scrollbar-gutter:stable]">
+          <p id="list-help" className="sr-only">방향키로 개체 사이를 이동합니다.</p>
+          <ul
+            ref={listRef}
+            onKeyDown={onListKey}
+            aria-labelledby="list-title"
+            aria-describedby="list-help"
+            className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 p-1 lg:overflow-y-auto lg:[scrollbar-gutter:stable]"
+          >
             {list.map((x) => (
               <li key={x.id}>
-                <IndividualCard ind={x} world={world} selected={x.id === selectedId} onSelect={() => setSelectedId(x.id)} />
+                <IndividualCard
+                  ind={x}
+                  world={world}
+                  selected={x.id === selectedId}
+                  focusable={x.id === focusedId}
+                  onSelect={() => setSelectedId(x.id)}
+                />
               </li>
             ))}
           </ul>
@@ -121,6 +215,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
 
         <aside aria-label="선택한 개체와 농장 기록" className="flex flex-col gap-5 lg:min-h-0">
           <div
+            ref={detailRef}
             role="region"
             aria-label="개체 상세"
             tabIndex={0}
@@ -149,6 +244,10 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
       <p className="sr-only" aria-live="polite">
         {world.day + 1}일차. {today}
       </p>
+      <p className="sr-only" aria-live="polite">
+        {announce}
+      </p>
+      <ShortcutHelp open={helpOpen} enabled={shortcutsOn} onEnabledChange={setShortcuts} onClose={() => setHelpOpen(false)} />
       <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2">
         {toast && <p className="rounded-xl bg-ink px-4 py-2.5 text-sm text-white shadow-lg">{toast}</p>}
       </div>

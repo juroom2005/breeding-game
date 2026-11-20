@@ -6,16 +6,20 @@ interface Props {
   ind: Individual;
   world: World;
   selected: boolean;
+  focusable: boolean;
   onSelect: () => void;
 }
 
-export default function IndividualCard({ ind, world, selected, onSelect }: Props) {
+export default function IndividualCard({ ind, world, selected, focusable, onSelect }: Props) {
   const adult = world.isAdult(ind);
   const female = ind.sex === 'F';
 
   return (
     <button
       type="button"
+      id={`card-${ind.id}`}
+      data-card-id={ind.id}
+      tabIndex={focusable ? 0 : -1}
       onClick={onSelect}
       aria-pressed={selected}
       className={`flex h-[168px] w-full flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
