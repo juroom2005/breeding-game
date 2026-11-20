@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { World } from '@/engine';
 import { DIFFICULTY_LABEL, pregnantCount, totalScore, type GameState } from '@/game/game';
 import IndividualCard from './IndividualCard';
@@ -16,13 +16,20 @@ interface Props {
 
 type SortKey = 'born' | 'score' | 'sex';
 
+const SORTS: [SortKey, string][] = [
+  ['born', '태어난 순'],
+  ['score', '점수순'],
+  ['sex', '성별'],
+];
+
 const SOON = ['마켓', '임무', '의뢰', '도감', '농장 관리'];
 
 export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }: Props) {
   const all = world.active();
   const [selectedId, setSelectedId] = useState<string | null>(all[0]?.id ?? null);
   const [sort, setSort] = useState<SortKey>('born');
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState('');
+  const toastTimer = useRef<number | undefined>(undefined);
   const selected = selectedId ? world.get(selectedId) : undefined;
 
   const list = [...all].sort((a, b) => {
@@ -32,121 +39,128 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onTitle }:
   });
 
   const over = all.length > state.farmSlots;
-  const showToast = (t: string) => {
-    setToast(t);
-    window.setTimeout(() => setToast(null), 2400);
+  const today = state.log.filter((l) => l.day === world.day).map((l) => l.text).join(' ');
+
+  const showToast = (text: string) => {
+    window.clearTimeout(toastTimer.current);
+    setToast(text);
+    toastTimer.current = window.setTimeout(() => setToast(''), 2400);
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* 상단 바 */}
-      <header className="sticky top-0 z-10 border-b border-line bg-panel/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
-          <button onClick={onTitle} className="text-left">
-            <p className="text-lg font-bold leading-tight">{state.farmName}</p>
+    <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
+      <header className="shrink-0 border-b border-line bg-panel">
+        <div className="mx-auto flex max-w-7xl items-center gap-6 px-5 pt-3">
+          <div className="w-44 min-w-0">
+            <h1 className="truncate text-lg font-bold leading-tight">{state.farmName}</h1>
             <p className="text-xs text-mute">{DIFFICULTY_LABEL[state.difficulty]}</p>
-          </button>
-          <Stat label="날짜" value={`${world.day + 1}일차`} />
-          <Stat label="골드" value={`${state.gold.toLocaleString()}g`} valueClass="text-gold" />
-          <Stat label="농장" value={`${all.length} / ${state.farmSlots}`} valueClass={over ? 'text-[#a13030]' : ''} />
-          <Stat label="임신실" value={`${pregnantCount(world)} / ${state.pregnancyRoom}`} />
-          <button
-            onClick={onNextDay}
-            className="ml-auto rounded-xl bg-accent px-5 py-2.5 font-semibold text-white shadow-sm hover:opacity-90"
-          >
-            다음 날 →
-          </button>
+          </div>
+          <dl className="flex gap-6">
+            <Stat label="날짜" value={`${world.day + 1}일차`} />
+            <Stat label="골드" value={`${state.gold.toLocaleString()}g`} valueClass="text-gold" />
+            <Stat label="농장" value={`${all.length} / ${state.farmSlots}`} valueClass={over ? 'text-danger' : ''} />
+            <Stat label="임신실" value={`${pregnantCount(world)} / ${state.pregnancyRoom}`} />
+          </dl>
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={onTitle} className="h-11 rounded-xl border border-line px-4 text-sm hover:border-accent">
+              타이틀
+            </button>
+            <button type="button" onClick={onNextDay} className="h-11 w-32 rounded-xl bg-accent font-semibold text-white shadow-sm hover:opacity-90">
+              다음 날 <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
-        <nav className="mx-auto flex max-w-7xl gap-1.5 overflow-x-auto px-5 pb-3">
-          <span className="rounded-lg bg-accent-soft px-3 py-1.5 text-sm font-semibold text-accent">농장</span>
+        <nav aria-label="게임 메뉴" className="mx-auto flex h-12 max-w-7xl items-center gap-1.5 overflow-x-auto px-5">
+          <button type="button" aria-current="page" className="h-8 rounded-lg bg-accent-soft px-3 text-sm font-semibold text-accent">
+            농장
+          </button>
           {SOON.map((n) => (
             <button
               key={n}
+              type="button"
+              aria-disabled="true"
               onClick={() => showToast(`${n}: 준비 중입니다`)}
-              className="rounded-lg px-3 py-1.5 text-sm text-mute hover:bg-[#efe9dd]"
+              className="h-8 rounded-lg px-3 text-sm text-mute hover:bg-[#efe9dd]"
             >
               {n}
+              <span className="sr-only"> (준비 중)</span>
             </button>
           ))}
         </nav>
       </header>
 
-      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-5 px-5 py-5 lg:grid-cols-[1fr_380px]">
-        {/* 개체 목록 */}
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold">개체 {all.length}</h2>
-            <div className="flex gap-1 text-xs">
-              {(
-                [
-                  ['born', '태어난 순'],
-                  ['score', '점수순'],
-                  ['sex', '성별'],
-                ] as [SortKey, string][]
-              ).map(([k, label]) => (
+      <main id="main" className="mx-auto grid w-full max-w-7xl flex-1 gap-5 px-5 py-5 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <section aria-labelledby="list-title" className="flex flex-col lg:min-h-0">
+          <div className="mb-3 flex h-8 shrink-0 items-center gap-3">
+            <h2 id="list-title" className="font-semibold">
+              개체 <span className="tabular-nums">{all.length}</span>
+            </h2>
+            <p className="min-w-0 flex-1 truncate text-sm text-danger">{over && `농장 칸(${state.farmSlots})을 넘었습니다`}</p>
+            <div role="group" aria-label="정렬 기준" className="flex shrink-0 gap-1 text-xs">
+              {SORTS.map(([k, label]) => (
                 <button
                   key={k}
+                  type="button"
+                  aria-pressed={sort === k}
                   onClick={() => setSort(k)}
-                  className={`rounded-md px-2.5 py-1 ${sort === k ? 'bg-ink text-white' : 'bg-panel text-mute hover:text-ink'}`}
+                  className={`h-7 w-16 rounded-md ${sort === k ? 'bg-ink text-white' : 'bg-panel text-mute hover:text-ink'}`}
                 >
                   {label}
                 </button>
               ))}
             </div>
           </div>
-          {over && (
-            <p className="mb-3 rounded-lg bg-[#fdecec] px-3 py-2 text-sm text-[#a13030]">
-              농장 칸({state.farmSlots})을 넘었습니다. 판매 기능은 마켓과 함께 추가됩니다.
-            </p>
-          )}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3">
+          <ul className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 lg:overflow-y-auto lg:pr-1 lg:[scrollbar-gutter:stable]">
             {list.map((x) => (
-              <IndividualCard key={x.id} ind={x} world={world} selected={x.id === selectedId} onSelect={() => setSelectedId(x.id)} />
+              <li key={x.id}>
+                <IndividualCard ind={x} world={world} selected={x.id === selectedId} onSelect={() => setSelectedId(x.id)} />
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
-        {/* 오른쪽: 상세 + 기록 */}
-        <aside className="flex flex-col gap-5">
-          <div className="rounded-2xl border border-line bg-panel p-5">
+        <aside aria-label="선택한 개체와 농장 기록" className="flex flex-col gap-5 lg:min-h-0">
+          <div
+            role="region"
+            aria-label="개체 상세"
+            tabIndex={0}
+            className="rounded-2xl border border-line bg-panel p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:[scrollbar-gutter:stable]"
+          >
             {selected ? (
-              <DetailPanel
-                key={selected.id}
-                ind={selected}
-                world={world}
-                state={state}
-                onMate={(m, f) => onMate(m, f)}
-              />
+              <DetailPanel key={selected.id} ind={selected} world={world} state={state} onMate={onMate} />
             ) : (
               <p className="text-sm text-mute">개체를 선택하세요.</p>
             )}
           </div>
-          <div className="rounded-2xl border border-line bg-panel p-5">
-            <h3 className="mb-2 text-sm font-semibold">농장 기록</h3>
-            <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto text-sm">
+          <section aria-labelledby="log-title" className="flex h-56 shrink-0 flex-col rounded-2xl border border-line bg-panel p-5">
+            <h2 id="log-title" className="mb-2 shrink-0 text-sm font-semibold">농장 기록</h2>
+            <ol tabIndex={0} aria-labelledby="log-title" className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto text-sm [scrollbar-gutter:stable]">
               {state.log.slice(-40).reverse().map((l, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="shrink-0 text-xs tabular-nums text-mute">{l.day + 1}일</span>
+                <li key={state.log.length - i} className="flex gap-2">
+                  <span className="w-9 shrink-0 text-xs tabular-nums text-mute">{l.day + 1}일</span>
                   <span className={l.kind === 'birth' ? 'text-female' : l.kind === 'adult' ? 'text-accent' : ''}>{l.text}</span>
                 </li>
               ))}
-            </ul>
-          </div>
+            </ol>
+          </section>
         </aside>
-      </div>
+      </main>
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl bg-ink px-4 py-2.5 text-sm text-white shadow-lg">{toast}</div>
-      )}
+      <p className="sr-only" aria-live="polite">
+        {world.day + 1}일차. {today}
+      </p>
+      <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2">
+        {toast && <p className="rounded-xl bg-ink px-4 py-2.5 text-sm text-white shadow-lg">{toast}</p>}
+      </div>
     </div>
   );
 }
 
 function Stat({ label, value, valueClass = '' }: { label: string; value: string; valueClass?: string }) {
   return (
-    <div>
-      <p className="text-[11px] text-mute">{label}</p>
-      <p className={`font-semibold tabular-nums ${valueClass}`}>{value}</p>
+    <div className="w-20">
+      <dt className="text-[11px] text-mute">{label}</dt>
+      <dd className={`truncate font-semibold tabular-nums ${valueClass}`}>{value}</dd>
     </div>
   );
 }

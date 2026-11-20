@@ -1,7 +1,4 @@
-/**
- * 임시 초상화 (상반신). 실제 그림이 나오면 이 컴포넌트만 파츠 렌더러로 바꾸면 된다.
- * 엔진의 색 이름과 귀 모양만 반영한다.
- */
+// 실제 그림이 나오면 이 컴포넌트만 파츠 렌더러로 교체한다
 import type { Individual } from '@/engine';
 import { eyeHex, hairHex, skinHex } from '@/game/colors';
 
@@ -9,9 +6,14 @@ interface Props {
   ind: Individual;
   baby?: boolean;
   size?: number;
+  /** 주변 텍스트가 이미 개체를 설명하면 true (스크린 리더가 중복으로 읽지 않게) */
+  decorative?: boolean;
 }
 
-export default function Portrait({ ind, baby = false, size = 96 }: Props) {
+export default function Portrait({ ind, baby = false, size = 96, decorative = false }: Props) {
+  const a11y = decorative
+    ? { 'aria-hidden': true as const }
+    : { role: 'img', 'aria-label': baby ? `${ind.name} (아기, 외모 비공개)` : `${ind.name} 초상화` };
   const p = ind.pheno;
   const skin = skinHex(p.skinTone);
   const hair = hairHex(p.hairColor);
@@ -20,7 +22,7 @@ export default function Portrait({ ind, baby = false, size = 96 }: Props) {
 
   if (baby) {
     return (
-      <svg viewBox="0 0 100 100" width={size} height={size} aria-label="아기 (정보 숨김)">
+      <svg viewBox="0 0 100 100" width={size} height={size} {...a11y}>
         <rect width="100" height="100" rx="14" fill="#efe9dd" />
         <ellipse cx="50" cy="96" rx="26" ry="16" fill="#e3d8c6" />
         <circle cx="50" cy="56" r="22" fill="#e3d8c6" />
@@ -30,14 +32,11 @@ export default function Portrait({ ind, baby = false, size = 96 }: Props) {
   }
 
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} aria-label={`${ind.name} 초상화`}>
+    <svg viewBox="0 0 100 100" width={size} height={size} {...a11y}>
       <rect width="100" height="100" rx="14" fill="#efe9dd" />
-      {/* 뒷머리 */}
       {long && <path d="M26 44 Q24 86 34 92 L66 92 Q76 86 74 44 Z" fill={hair} />}
-      {/* 어깨, 목 */}
       <path d="M18 100 Q20 80 40 76 L60 76 Q80 80 82 100 Z" fill="#7c6fae" />
       <rect x="43" y="62" width="14" height="16" fill={skin} />
-      {/* 귀 */}
       {ear === '긴 귀' && (
         <>
           <path d="M30 48 L12 32 L31 56 Z" fill={skin} stroke="#00000022" />
@@ -56,14 +55,12 @@ export default function Portrait({ ind, baby = false, size = 96 }: Props) {
           <ellipse cx="70" cy="51" rx="4" ry="6" fill={skin} />
         </>
       )}
-      {/* 얼굴 */}
       <ellipse cx="50" cy="48" rx="20" ry="22" fill={skin} />
-      {/* 눈: 캐릭터 오른눈이 화면 왼쪽 */}
+      {/* 캐릭터 기준 오른눈이 화면 왼쪽 */}
       <ellipse cx="42" cy="51" rx="3.6" ry="4.2" fill={eyeHex(p.eyeRight)} />
       <ellipse cx="58" cy="51" rx="3.6" ry="4.2" fill={eyeHex(p.eyeLeft)} />
       <circle cx="43" cy="49.5" r="1.1" fill="#fff" />
       <circle cx="59" cy="49.5" r="1.1" fill="#fff" />
-      {/* 앞머리 */}
       <path d="M29 46 Q28 22 50 22 Q72 22 71 46 Q64 34 50 36 Q38 34 29 46 Z" fill={hair} />
       {p.extraParts.halo && <ellipse cx="50" cy="14" rx="15" ry="4" fill="none" stroke="#f3d37a" strokeWidth="3" />}
       {p.extraParts.horns && (

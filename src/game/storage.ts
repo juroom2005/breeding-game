@@ -1,7 +1,3 @@
-/**
- * 저장: 브라우저 IndexedDB에 게임 상태 하나를 통째로 저장한다 (외부 라이브러리 없음).
- * 저장 칸을 여러 개 만들고 싶으면 key를 'slot-1', 'slot-2'처럼 바꾸면 된다.
- */
 import type { GameState } from './game';
 
 const DB = 'breeding-game';

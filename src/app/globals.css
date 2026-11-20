@@ -1,22 +1,46 @@
 @import "tailwindcss";
 
-/* 게임 색 (임시). 나중에 그림체에 맞춰 바꾸면 된다 */
+/* 글자색은 모두 배경 대비 4.5:1 이상 (WCAG AA) */
 @theme {
   --color-paper: #f6f1e7;
   --color-panel: #fffdf8;
   --color-ink: #2b2621;
-  --color-mute: #7a7065;
+  --color-mute: #655b51;
   --color-line: #e6ddcd;
   --color-accent: #6b4fbf;
   --color-accent-soft: #ece7fa;
-  --color-gold: #b8860b;
-  --color-female: #c2477a;
-  --color-male: #3a6fb5;
+  --color-gold: #7f5c07;
+  --color-female: #b03a6c;
+  --color-male: #2f5d99;
+  --color-danger: #a13030;
+  --color-danger-soft: #fdecec;
   --font-sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+}
+
+/* 스크롤바가 생기거나 사라질 때 화면 폭이 바뀌지 않게. 넓은 화면은 페이지 대신 영역별로 스크롤한다 */
+@media (max-width: 1023px) {
+  html {
+    scrollbar-gutter: stable;
+  }
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

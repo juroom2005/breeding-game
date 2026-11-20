@@ -1,9 +1,6 @@
 'use client';
 
-/**
- * 게임 진입점. 화면 전환(타이틀 ↔ 농장)과 저장만 여기서 한다.
- * 엔진 World는 값이 바뀌는 객체라 한 번만 state에 넣어두고, 게임 상태(GameState)가 바뀔 때마다 화면을 다시 그린다.
- */
+// World는 내부 값이 바뀌는 객체라 state에 한 번만 넣고, 다시 그리기는 GameState 변경으로 일으킨다
 import { useEffect, useState } from 'react';
 import { World } from '@/engine';
 import { newGame, nextDay, tryMate, type Difficulty, type GameState } from '@/game/game';
@@ -46,7 +43,7 @@ export default function Home() {
     setScreen('farm');
   };
 
-  if (screen === 'loading') return <main className="flex flex-1 items-center justify-center text-mute">불러오는 중…</main>;
+  if (screen === 'loading') return <main id="main" aria-busy="true" className="flex flex-1 items-center justify-center text-mute">불러오는 중…</main>;
 
   if (screen === 'title' || !state || !world) {
     return <TitleScreen hasSave={!!saved} onContinue={resume} onNewGame={start} />;
