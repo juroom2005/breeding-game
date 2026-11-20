@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Individual, World } from '@/engine';
 import { DIFFICULTY_LABEL, asPair, farmCount, mateBlockReason, overflow, totalScore, type GameState } from '@/game/game';
-import { buyPrice, sellPrice, slotUpgradeCost } from '@/game/economy';
+import { buyPrice, dailyUpkeep, nextTax, sellPrice, slotUpgradeCost } from '@/game/economy';
 import { offerList } from '@/game/market';
 import { josa } from '@/game/josa';
 import { isTypingTarget, loadShortcutsEnabled, saveShortcutsEnabled } from '@/game/shortcuts';
@@ -13,6 +13,7 @@ import MarketView, { buyBlockReason } from './MarketView';
 import BreedingPanel from './BreedingPanel';
 import PregnancyRoom from './PregnancyRoom';
 import ShortcutHelp from './ShortcutHelp';
+import GameOverDialog from './GameOverDialog';
 import Portrait from './Portrait';
 import { useCardDrag } from './useCardDrag';
 
@@ -76,7 +77,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
   const father = usable(fatherId);
 
   const orderIndex = new Map(state.order.map((id, i) => [id, i]));
-  const list = all
+  const sorted = all
     .filter((x) => !x.pregnancy)
     .sort((a, b) => {
       if (sort === 'score') return (world.isAdult(b) ? totalScore(b) : -1) - (world.isAdult(a) ? totalScore(a) : -1);
@@ -84,6 +85,8 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
       if (sort === 'custom') return (orderIndex.get(a.id) ?? Infinity) - (orderIndex.get(b.id) ?? Infinity) || a.birthOrder - b.birthOrder;
       return a.birthOrder - b.birthOrder;
     });
+  const list = sorted.filter((x) => world.isAdult(x));
+  const babies = sorted.filter((x) => !world.isAdult(x));
   const pregnant = all.filter((x) => x.pregnancy).sort((a, b) => a.pregnancy!.dueDay - b.pregnancy!.dueDay);
 
   const count = farmCount(world);
@@ -93,6 +96,9 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
   const emptyCells = Math.max(0, state.farmSlots - count);
   const today = state.log.filter((l) => l.day === world.day).map((l) => l.text).join(' ');
   const focusedId = list.some((x) => x.id === selectedId) ? selectedId : list[0]?.id;
+  const focusedBabyId = babies.some((x) => x.id === selectedId) ? selectedId : babies[0]?.id;
+  const upkeep = dailyUpkeep(world);
+  const tax = nextTax(world.day);
 
   const showToast = (text: string) => {
     window.clearTimeout(toastTimer.current);
@@ -189,26 +195,30 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
     return { kind: 'swap', text: '놓으면 자리 바꾸기' };
   };
 
-  const onListKey = (e: React.KeyboardEvent<HTMLUListElement>) => {
-    if (!list.length || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+  const gridKey = (e: React.KeyboardEvent<HTMLUListElement>, items: Individual[], current: string | null | undefined, allowMove: boolean) => {
+    if (!items.length || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
     e.preventDefault();
-    const items = Array.from(listRef.current?.children ?? []) as HTMLElement[];
-    const cols = Math.max(1, items.filter((el) => el.offsetTop === items[0]?.offsetTop).length);
-    const i = Math.max(0, list.findIndex((x) => x.id === focusedId));
+    const els = Array.from(e.currentTarget.children) as HTMLElement[];
+    const cols = Math.max(1, els.filter((el) => el.offsetTop === els[0]?.offsetTop).length);
+    const i = Math.max(0, items.findIndex((x) => x.id === current));
     const step: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols };
-    const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : Math.min(list.length - 1, Math.max(0, i + step[e.key]));
-    if (e.shiftKey && focusedId && next !== i) {
-      swap(focusedId, list[next].id);
-      setAnnounce(`${josa(list[i].name, '을/를')} ${next + 1}번째 자리로 옮겼습니다`);
-      requestAnimationFrame(() => document.getElementById(`card-${focusedId}`)?.focus());
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : Math.min(items.length - 1, Math.max(0, i + step[e.key]));
+    if (allowMove && e.shiftKey && current && next !== i) {
+      moveCard(current, i, next);
       return;
     }
-    select(list[next].id, true);
+    select(items[next].id, true);
+  };
+
+  const moveCard = (id: string, i: number, next: number) => {
+    swap(id, list[next].id);
+    setAnnounce(`${josa(list[i].name, '을/를')} ${next + 1}번째 자리로 옮겼습니다`);
+    requestAnimationFrame(() => document.getElementById(`card-${id}`)?.focus());
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (helpOpen || e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
+      if (helpOpen || state.gameOver || e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
       if (e.key === '?') {
         e.preventDefault();
         setHelpOpen(true);
@@ -231,9 +241,10 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
         if (reason) showToast(reason);
         else mate(mother!, father!);
       } else if (e.key === '[' || e.key === ']') {
-        if (!list.length) return;
-        const i = Math.max(0, list.findIndex((x) => x.id === selectedId));
-        const next = list[(i + (e.key === ']' ? 1 : -1) + list.length) % list.length];
+        const cycle = [...list, ...babies];
+        if (!cycle.length) return;
+        const i = Math.max(0, cycle.findIndex((x) => x.id === selectedId));
+        const next = cycle[(i + (e.key === ']' ? 1 : -1) + cycle.length) % cycle.length];
         select(next.id, false);
         setAnnounce(`${next.name} 선택`);
       } else return;
@@ -260,7 +271,13 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
           </div>
           <dl className="flex gap-6">
             <Stat label="날짜" value={`${world.day + 1}일차`} />
-            <Stat label="골드" value={`${state.gold.toLocaleString()}g`} valueClass="text-gold" />
+            <Stat label="골드" value={`${state.gold.toLocaleString()}g`} valueClass={state.gold < 0 ? 'text-danger' : 'text-gold'} />
+            <Stat label="하루 유지비" value={`-${upkeep.toLocaleString()}g`} />
+            <Stat
+              label={`${tax.month}월 세금 D-${tax.daysLeft}`}
+              value={`${tax.amount.toLocaleString()}g`}
+              valueClass={tax.daysLeft <= 5 && state.gold < tax.amount ? 'text-danger' : ''}
+            />
             <Stat label="농장" value={`${count} / ${state.farmSlots}`} valueClass={over ? 'text-danger' : ''} />
             <Stat label="임신실" value={`${pregnant.length} / ${state.pregnancyRoom}`} />
           </dl>
@@ -383,12 +400,13 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
             <p id="list-help" className="sr-only">
               방향키로 이동, Shift와 방향키로 자리 옮기기. 마우스로 끌어서 자리를 바꾸거나, 다른 성별 개체 위에 잠시 대고 있으면 교배합니다.
             </p>
+            <div className="flex-1 p-1 lg:min-h-0 lg:overflow-y-auto lg:[scrollbar-gutter:stable]">
             <ul
               ref={listRef}
-              onKeyDown={onListKey}
+              onKeyDown={(e) => gridKey(e, list, focusedId, true)}
               aria-labelledby="list-title"
               aria-describedby="list-help"
-              className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 p-1 lg:overflow-y-auto lg:[scrollbar-gutter:stable]"
+              className="grid auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3"
             >
               {list.map((x, i) => (
                 <li key={x.id} className={i >= state.farmSlots - pregnant.length ? 'rounded-xl ring-2 ring-danger' : ''}>
@@ -424,6 +442,35 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
                 </li>
               ))}
             </ul>
+            <h3 id="nursery-title" className="mb-2 mt-5 flex items-baseline gap-2 text-sm font-semibold">
+              육아실 <span className="tabular-nums text-mute">{babies.length}</span>
+              <span className="text-xs font-normal text-mute">농장 칸을 차지하지 않습니다. 성체가 되면 농장 칸이 필요합니다</span>
+            </h3>
+            {babies.length === 0 ? (
+              <p className="flex h-12 items-center rounded-xl border border-dashed border-line px-4 text-xs text-mute">아기가 없습니다</p>
+            ) : (
+              <ul
+                onKeyDown={(e) => gridKey(e, babies, focusedBabyId, false)}
+                aria-labelledby="nursery-title"
+                className="grid auto-rows-min grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3"
+              >
+                {babies.map((x) => (
+                  <li key={x.id}>
+                    <IndividualCard
+                      ind={x}
+                      world={world}
+                      selected={x.id === selectedId}
+                      focusable={x.id === focusedBabyId}
+                      dragging={false}
+                      hint={null}
+                      holdMs={HOLD_MS}
+                      onSelect={() => setSelectedId(x.id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            </div>
           </section>
         </div>
         )}
@@ -500,6 +547,9 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
       <p className="sr-only" aria-live="polite">
         {announce}
       </p>
+      {state.gameOver && (
+        <GameOverDialog open day={state.gameOver.day} reason={state.gameOver.reason} farmName={state.farmName} onTitle={onTitle} />
+      )}
       <ShortcutHelp open={helpOpen} enabled={shortcutsOn} onEnabledChange={setShortcuts} onClose={() => setHelpOpen(false)} />
       <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
         {toast && <p className="max-w-[90vw] rounded-xl bg-ink px-4 py-2.5 text-sm text-white shadow-lg">{toast}</p>}

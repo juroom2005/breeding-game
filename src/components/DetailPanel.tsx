@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { SLOTS, STAT_NAMES, type Individual, type World } from '@/engine';
 import { SHOWN_STATS, STAT_MAX, shownStat, totalScore, type GameState } from '@/game/game';
+import { upkeepOf } from '@/game/economy';
 import Portrait from './Portrait';
 
 interface Props {
@@ -34,6 +35,7 @@ export default function DetailPanel({ ind, world, state, actions }: Props) {
             {ind.raceLabel} · {ind.generation}세대 · {ind.status === 'market' ? '마켓 매물' : ind.source === 'market' ? '마켓 출신' : `${state.farmName} 출신`}
           </p>
           <p className="h-4 text-xs text-mute">{(mother || father) && `부모: ${mother?.name ?? '?'} × ${father?.name ?? '?'}`}</p>
+          <p className="h-4 text-xs text-mute tabular-nums">하루 유지비 {upkeepOf(ind, world)}g</p>
         </div>
       </header>
 

@@ -1,7 +1,7 @@
 import { josa } from './josa';
 import { World, type SaveData, type Individual } from '@/engine';
 import { totalScore } from './stats';
-import { buyPrice, sellPrice, slotUpgradeCost } from './economy';
+import { buyPrice, dailyUpkeep, ECONOMY, sellPrice, slotUpgradeCost, taxFor } from './economy';
 import { MARKET, marketSeed, restock, type MarketState } from './market';
 
 export type Difficulty = 'casual' | 'normal';
@@ -26,7 +26,7 @@ export const RULES = {
 export interface LogEntry {
   day: number;
   text: string;
-  kind: 'info' | 'birth' | 'mate' | 'adult' | 'trade';
+  kind: 'info' | 'birth' | 'mate' | 'adult' | 'trade' | 'money';
 }
 
 export interface GameState {
@@ -40,6 +40,7 @@ export interface GameState {
   order: string[];
   farmUpgrades: number;
   market: MarketState;
+  gameOver?: { day: number; reason: string };
   log: LogEntry[];
   world: SaveData;
 }
@@ -79,9 +80,9 @@ export function pregnantCount(world: World): number {
   return world.active().filter((x) => x.pregnancy).length;
 }
 
-/** 임신실에 있는 개체도 농장 칸을 차지한다 */
+/** 성체만 농장 칸을 차지한다 (임신실에 있어도 차지). 아기는 육아실에 있다가 성체가 되면 칸이 필요해진다 */
 export function farmCount(world: World): number {
-  return world.active().length;
+  return world.active().filter((x) => world.isAdult(x)).length;
 }
 
 export function withDefaults(s: GameState): GameState {
@@ -158,9 +159,23 @@ export function setOrder(state: GameState, order: string[]): GameState {
 }
 
 export function nextDay(state: GameState, world: World): GameState {
-  if (overflow(state, world) > 0) return state;
+  if (state.gameOver || overflow(state, world) > 0) return state;
   const log = [...state.log];
+  const upkeep = dailyUpkeep(world);
   const births = world.advanceDay();
+  let gold = state.gold - upkeep;
+  let gameOver: GameState['gameOver'];
+  if (world.day % ECONOMY.tax.monthDays === 0) {
+    const month = world.day / ECONOMY.tax.monthDays;
+    const tax = taxFor(month);
+    if (state.difficulty === 'normal' && gold < tax) {
+      gameOver = { day: world.day, reason: `${month}월 세금 ${tax.toLocaleString()}g을 내지 못했습니다 (가진 돈 ${gold.toLocaleString()}g)` };
+      log.push({ day: world.day, text: gameOver.reason, kind: 'money' });
+    } else {
+      gold -= tax;
+      log.push({ day: world.day, text: `${month}월 세금 ${tax.toLocaleString()}g을 냈습니다`, kind: 'money' });
+    }
+  }
   for (const ev of births) {
     const names = ev.children.map((c) => `${c.name}(${c.sex === 'F' ? '♀' : '♂'})`).join(', ');
     const twin = ev.children.length === 2 ? ' 쌍둥이!' : ev.children.length === 3 ? ' 세쌍둥이!' : '';
@@ -175,7 +190,7 @@ export function nextDay(state: GameState, world: World): GameState {
   const over = overflow(state, world);
   if (over > 0) log.push({ day: world.day, text: `농장 칸이 ${over}칸 모자랍니다. 개체를 팔거나 칸을 늘려야 다음 날로 넘어갈 수 있습니다`, kind: 'info' });
   const market = restock(world, state.market, marketSeed(world.seed, world.day, 0));
-  return { ...state, order: [...state.order, ...born], market, log: log.slice(-200), world: world.serialize() };
+  return { ...state, gold, gameOver, order: [...state.order, ...born], market, log: log.slice(-200), world: world.serialize() };
 }
 
 /** 교배할 수 없으면 이유, 할 수 있으면 null */

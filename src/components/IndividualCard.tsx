@@ -16,7 +16,8 @@ interface Props {
   hint: DropHint | null;
   holdMs: number;
   onSelect: () => void;
-  onPointerDown: (e: React.PointerEvent) => void;
+  /** 없으면 끌 수 없는 카드 */
+  onPointerDown?: (e: React.PointerEvent) => void;
 }
 
 export default function IndividualCard({ ind, world, selected, focusable, dragging, hint, holdMs, onSelect, onPointerDown }: Props) {
@@ -32,7 +33,7 @@ export default function IndividualCard({ ind, world, selected, focusable, draggi
       onClick={onSelect}
       onPointerDown={onPointerDown}
       aria-pressed={selected}
-      className={`relative flex h-[168px] w-full cursor-grab select-none flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
+      className={`relative flex h-[168px] w-full select-none ${onPointerDown ? 'cursor-grab' : 'cursor-pointer'} flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
         selected ? 'border-accent ring-2 ring-accent/30' : 'border-line hover:border-accent/60'
       } ${dragging ? 'opacity-40' : ''} ${hint?.kind === 'mate' ? 'border-female ring-2 ring-female/40' : ''}`}
     >
