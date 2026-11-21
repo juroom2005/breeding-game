@@ -8,6 +8,7 @@ import {
 import { SHOWN_STATS, STAT_MAX, shownStat, totalScore } from '@/game/game';
 import { upkeepOf } from '@/game/economy';
 import Portrait from './Portrait';
+import { eyeColorName, hairName, skinName } from '@/game/colors';
 
 interface Props {
   ind: Individual;
@@ -116,9 +117,9 @@ export default function DetailPanel({ ind, world, actions, onPedigree, shortcuts
           <section aria-labelledby="looks-title">
             <h3 id="looks-title" className="mb-1.5 text-sm font-semibold">외모</h3>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
-              <Row label="머리색" value={p.hairColor} />
-              <Row label="눈색" value={p.eyeColor} />
-              <Row label="피부" value={p.skinToneName} />
+              <Row label="머리색" value={hairName(p.hairColor)} />
+              <Row label="눈색" value={eyeColorName(p)} />
+              <Row label="피부" value={skinName(p)} />
               <Row label="머리 모양" value={p.hairStyle} />
               {SLOTS.map((s) => (
                 <Row key={s.id} label={s.name} value={p.slots[s.id]} />

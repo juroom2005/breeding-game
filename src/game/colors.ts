@@ -1,17 +1,29 @@
-/** 엔진은 색을 이름("갈색")으로 주므로 화면용 색으로 바꾼다 */
-export const HAIR_HEX: Record<string, string> = {
-  검정: '#24201f', 갈색: '#6b4429', 빨강: '#b23a2e', 청록: '#2f8f8a',
-  금발: '#e0b75a', 은발: '#c9cbd3', 백금: '#efe6cf', 분홍: '#e48fb0', 백색: '#f4f2ee',
-};
+// 엔진은 색을 ID("Dewdrop Blue")로 준다. 화면용 HEX와 이름은 엔진 팔레트(data/colors.ts)에서 꺼낸다
+import { EYE_COLORS, HAIR_COLORS, PIGMENT, SKIN_COLORS, colorLabel, type Phenotype } from '@/engine';
 
-export const EYE_HEX: Record<string, string> = {
-  검정: '#1c1a1e', 갈색: '#6b4429', 금색: '#d2a227', 청록: '#2a9d8f', 초록: '#3c965a',
-  파랑: '#3d6fd0', 회색: '#8a8f98', 보라: '#8a4fc7', 붉은색: '#c23b3b',
-};
+/** 알비노/루시스틱의 창백한 피부 (유전 색이 아니라 겉모습만) */
+const PALE_SKIN = { hex: '#FBF7F4', line: '#6B4A40' };
+const FALLBACK = { hex: '#888888', line: '#3a302b' };
 
-/** 피부 0(창백함) ~ 6(매우 어두움) */
-export const SKIN_HEX = ['#fbeee6', '#f7dfcf', '#f0c8af', '#d9a07a', '#b57a52', '#8a5a3c', '#5e3d2a'];
+export const hairHex = (id: string) => HAIR_COLORS[id]?.hex ?? FALLBACK.hex;
+export const eyeHex = (id: string) => EYE_COLORS[id]?.hex ?? FALLBACK.hex;
 
-export const hairHex = (name: string) => HAIR_HEX[name] ?? '#888888';
-export const eyeHex = (name: string) => EYE_HEX[name] ?? '#666666';
-export const skinHex = (tone: number) => SKIN_HEX[Math.max(0, Math.min(6, tone))];
+/** 겉으로 보이는 피부 HEX와 이목구비 선 색 */
+export function skinLook(p: Phenotype): { hex: string; line: string } {
+  if (p.albino || p.leucistic) return PALE_SKIN;
+  return SKIN_COLORS[p.skinColor] ?? FALLBACK;
+}
+
+export const hairName = (id: string) => colorLabel(HAIR_COLORS[id], id);
+export const eyeName = (id: string) => colorLabel(EYE_COLORS[id], id);
+
+/** 상세 표시용 피부 이름. 창백한 이형은 원래 피부색을 함께 적는다 (자식에게는 원래 색이 전해지므로) */
+export function skinName(p: Phenotype): string {
+  const own = colorLabel(SKIN_COLORS[p.skinColor], p.skinColor);
+  if (p.albino) return `${PIGMENT.albino.skin} · 유전 피부색 ${own}`;
+  if (p.leucistic) return `${PIGMENT.leucistic.skin} · 유전 피부색 ${own}`;
+  return own;
+}
+
+/** 눈색 표시 (오드아이면 왼쪽 / 오른쪽, 캐릭터 기준) */
+export const eyeColorName = (p: Phenotype) => (p.oddEye ? `${eyeName(p.eyeLeft)} / ${eyeName(p.eyeRight)}` : eyeName(p.eyeLeft));

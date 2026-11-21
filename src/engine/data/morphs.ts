@@ -53,6 +53,7 @@ export const HYBRID_FORM = { id: 'hybridForm', name: '하이브리드 형태', r
 export const EXTRA_COLOR_LOCI = [WING_COLOR, HORN_COLOR, HALO_COLOR, HYBRID_FORM];
 
 export const PIGMENT = {
-  albino: { name: '알비노', hair: '백색', eye: '붉은색', skin: '알비노 (창백함)' },
-  leucistic: { name: '루시스틱', hair: '백색', skin: '루시스틱 (창백함)' }, // 눈 색은 원래대로
+  // 색 ID는 data/colors.ts. 피부는 원래 피부색 유전자를 그대로 갖고 겉만 창백하게 보인다
+  albino: { name: '알비노', hair: 'Snow White', eye: 'Ruby', skin: '알비노 (창백함)' },
+  leucistic: { name: '루시스틱', hair: 'Snow White', skin: '루시스틱 (창백함)' }, // 눈 색은 원래대로
 };

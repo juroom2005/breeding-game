@@ -9,8 +9,8 @@ export interface RaceDef {
   /** 눈색/머리색 대립유전자 빈도 */
   eyeColor: Record<string, number>;
   hairColor: Record<string, number>;
-  /** 피부색 대립유전자가 1(어두운 쪽)일 확률 */
-  skinDarkP: number;
+  /** 피부색 풀과 빈도 (색 ID는 data/colors.ts). 혼혈이 새 색을 받을 때도 이 풀을 혈통 비율대로 섞어 쓴다 */
+  skinColor: Record<string, number>;
   /** 슬롯별 고유 파츠 (순종은 양쪽 대립유전자 모두 이 값) */
   slots: Record<string, string>;
   /** 수치형: 대립유전자 하나의 평균과 표준편차 */
@@ -52,9 +52,11 @@ export const RACES: Record<RaceId, RaceDef> = {
   human: {
     id: 'human',
     name: '인간',
-    eyeColor: { 갈색: 0.45, 검정: 0.2, 파랑: 0.15, 초록: 0.1, 회색: 0.07, 보라: 0.03 },
-    hairColor: { 검정: 0.35, 갈색: 0.35, 금발: 0.15, 빨강: 0.1, 은발: 0.05 },
-    skinDarkP: 0.45,
+    eyeColor: { Chestnut: 0.3, Onyx: 0.2, Hazel: 0.15, 'Sky Blue': 0.12, Emerald: 0.08, 'Storm Grey': 0.08, Sapphire: 0.05, Violet: 0.02 },
+    hairColor: { 'Dark Brown': 0.25, Raven: 0.2, Chestnut: 0.2, 'Honey Blonde': 0.15, Auburn: 0.08, 'Copper Red': 0.07, Silver: 0.05 },
+    skinColor: {
+      Porcelain: 0.1, Ivory: 0.15, 'Peach Cream': 0.18, 'Warm Beige': 0.17, 'Honey Tan': 0.14, Bronze: 0.11, Cocoa: 0.09, Espresso: 0.06,
+    },
     slots: { ear: '둥근 귀', lowerBody: '다리', arms: '기본', skinPattern: '없음', eyeShape: '기본' },
     height: [70 / 16, 1.2],
     fat: S(50), muscle: S(50), chest: S(50, 1.6), genital: S(50, 1.6),
@@ -70,9 +72,13 @@ export const RACES: Record<RaceId, RaceDef> = {
   elf: {
     id: 'elf',
     name: '엘프',
-    eyeColor: { 초록: 0.3, 금색: 0.25, 파랑: 0.2, 회색: 0.15, 보라: 0.1 },
-    hairColor: { 금발: 0.35, 백금: 0.3, 은발: 0.2, 갈색: 0.1, 분홍: 0.05 },
-    skinDarkP: 0.2,
+    eyeColor: { Gold: 0.2, Emerald: 0.15, Jade: 0.15, Sapphire: 0.12, Amber: 0.1, Lilac: 0.1, 'Storm Grey': 0.1, Violet: 0.08 },
+    hairColor: { Golden: 0.3, Platinum: 0.25, Silver: 0.15, 'Honey Blonde': 0.1, Lavender: 0.1, 'Rose Pink': 0.05, Chestnut: 0.05 },
+    // 미백/밝은 피부가 대부분, 특유 색은 사용자 지정. 칠흑(Royal Black)은 5%
+    skinColor: {
+      Porcelain: 0.18, 'Moonlit White': 0.14, 'Tender Pastel Pink': 0.14, Ivory: 0.12, 'Pink Tooth': 0.12,
+      'Dewdrop Blue': 0.09, 'Easter Pink': 0.08, 'Tender Black': 0.08, 'Royal Black': 0.05,
+    },
     slots: { ear: '긴 귀', lowerBody: '다리', arms: '기본', skinPattern: '없음', eyeShape: '엘프 눈' },
     height: [80 / 16, 1.2],
     fat: S(44), muscle: S(45), chest: S(46, 1.6), genital: S(46, 1.6),
@@ -88,9 +94,11 @@ export const RACES: Record<RaceId, RaceDef> = {
   mermaid: {
     id: 'mermaid',
     name: '인어',
-    eyeColor: { 청록: 0.4, 파랑: 0.3, 회색: 0.15, 보라: 0.1, 초록: 0.05 },
-    hairColor: { 청록: 0.45, 은발: 0.2, 분홍: 0.15, 백금: 0.1, 검정: 0.1 },
-    skinDarkP: 0.25,
+    eyeColor: { Teal: 0.3, Aquamarine: 0.25, Sapphire: 0.15, 'Storm Grey': 0.1, Violet: 0.1, Jade: 0.1 },
+    hairColor: { 'Deep Teal': 0.25, 'Sea Green': 0.2, Silver: 0.15, 'Rose Pink': 0.15, Platinum: 0.1, Raven: 0.1, Lavender: 0.05 },
+    skinColor: {
+      Pearl: 0.2, 'Coral Blush': 0.15, Seafoam: 0.14, Sandbar: 0.12, Lagoon: 0.12, Abalone: 0.1, 'Tidal Teal': 0.1, 'Deep Sea': 0.07,
+    },
     slots: { ear: '지느러미 귀', lowerBody: '꼬리', arms: '팔 지느러미', skinPattern: '비늘', eyeShape: '인어 눈' },
     height: [68 / 16, 1.2],
     fat: S(52), muscle: S(50), chest: S(52, 1.6), genital: S(50, 1.6),

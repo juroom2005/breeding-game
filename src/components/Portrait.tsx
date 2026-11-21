@@ -1,6 +1,6 @@
 // 실제 그림이 나오면 이 컴포넌트만 파츠 렌더러로 교체한다
 import type { Individual } from '@/engine';
-import { eyeHex, hairHex, skinHex } from '@/game/colors';
+import { eyeHex, hairHex, skinLook } from '@/game/colors';
 
 interface Props {
   ind: Individual;
@@ -15,7 +15,8 @@ export default function Portrait({ ind, baby = false, size = 96, decorative = fa
     ? { 'aria-hidden': true as const }
     : { role: 'img', 'aria-label': baby ? `${ind.name} (아기, 외모 비공개)` : `${ind.name} 초상화` };
   const p = ind.pheno;
-  const skin = skinHex(p.skinTone);
+  // 선 색은 피부색마다 다르다 (아주 어두운 피부는 밝은 선). 실제 그림에서는 line 레이어에 이 색을 입힌다
+  const { hex: skin, line } = skinLook(p);
   const hair = hairHex(p.hairColor);
   const ear = p.slots.ear ?? '둥근 귀';
   const long = ind.sex === 'F';
@@ -39,8 +40,8 @@ export default function Portrait({ ind, baby = false, size = 96, decorative = fa
       <rect x="43" y="62" width="14" height="16" fill={skin} />
       {ear === '긴 귀' && (
         <>
-          <path d="M30 48 L12 32 L31 56 Z" fill={skin} stroke="#00000022" />
-          <path d="M70 48 L88 32 L69 56 Z" fill={skin} stroke="#00000022" />
+          <path d="M30 48 L12 32 L31 56 Z" fill={skin} stroke={line} strokeOpacity="0.5" />
+          <path d="M70 48 L88 32 L69 56 Z" fill={skin} stroke={line} strokeOpacity="0.5" />
         </>
       )}
       {ear === '지느러미 귀' && (
@@ -51,14 +52,16 @@ export default function Portrait({ ind, baby = false, size = 96, decorative = fa
       )}
       {ear === '둥근 귀' && (
         <>
-          <ellipse cx="30" cy="51" rx="4" ry="6" fill={skin} />
-          <ellipse cx="70" cy="51" rx="4" ry="6" fill={skin} />
+          <ellipse cx="30" cy="51" rx="4" ry="6" fill={skin} stroke={line} strokeOpacity="0.5" />
+          <ellipse cx="70" cy="51" rx="4" ry="6" fill={skin} stroke={line} strokeOpacity="0.5" />
         </>
       )}
-      <ellipse cx="50" cy="48" rx="20" ry="22" fill={skin} />
+      <ellipse cx="50" cy="48" rx="20" ry="22" fill={skin} stroke={line} strokeOpacity="0.5" />
       {/* 캐릭터 기준 오른눈이 화면 왼쪽 */}
-      <ellipse cx="42" cy="51" rx="3.6" ry="4.2" fill={eyeHex(p.eyeRight)} />
-      <ellipse cx="58" cy="51" rx="3.6" ry="4.2" fill={eyeHex(p.eyeLeft)} />
+      <ellipse cx="42" cy="51" rx="3.6" ry="4.2" fill={eyeHex(p.eyeRight)} stroke={line} strokeWidth="0.9" />
+      <ellipse cx="58" cy="51" rx="3.6" ry="4.2" fill={eyeHex(p.eyeLeft)} stroke={line} strokeWidth="0.9" />
+      <path d="M37.5 45 Q42 43 46 44.5 M54 44.5 Q58 43 62.5 45" fill="none" stroke={line} strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M46.5 61 Q50 63 53.5 61" fill="none" stroke={line} strokeWidth="1.1" strokeLinecap="round" />
       <circle cx="43" cy="49.5" r="1.1" fill="#fff" />
       <circle cx="59" cy="49.5" r="1.1" fill="#fff" />
       <path d="M29 46 Q28 22 50 22 Q72 22 71 46 Q64 34 50 36 Q38 34 29 46 Z" fill={hair} />

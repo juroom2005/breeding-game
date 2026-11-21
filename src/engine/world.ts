@@ -11,9 +11,12 @@ import { CHOSEN_HYBRID_NAME, MORPHS, MORPH_IDS, PIGMENT, type MorphId } from './
 import { computePhenotype } from './phenotype';
 import { blendByRace, mainRaceOf, raceLabel } from './classify';
 import { decodeGenome, encodeGenome, type EncodedGenome } from './save';
+import { migrateV2 } from './migrate';
+import { valueName } from './data/colors';
 
 export interface SaveData {
-  version: 2;
+  /** 2 = 2026-11-21 전 (피부 0~6단계, 한국어 색 이름). 불러올 때 3으로 옮긴다 */
+  version: 2 | 3;
   seed: number;
   rngState: number;
   day: number;
@@ -368,6 +371,7 @@ export class World {
       return [...new Set([p.eyeLeft, p.eyeRight])].filter((c) => alleles.includes(c));
     }
     if (locusId === 'hairColor') return p.albino || p.leucistic ? [] : [p.hairColor];
+    if (locusId === 'skinColor') return p.albino || p.leucistic ? [] : [p.skinColor];
     return [p.slots[locusId]];
   }
 
@@ -411,13 +415,14 @@ export class World {
         for (const a of matching) {
           let note: InheritNote;
           if (a.origin === child.id) {
-            note = { locus: locus.id, label: `${locus.name}: ${shown} (돌연변이)`, kind: 'mutation' };
+            const why = locus.id === 'skinColor' ? '부모와 다른 새 피부색' : '돌연변이';
+            note = { locus: locus.id, label: `${locus.name}: ${valueName(locus.id, shown)} (${why})`, kind: 'mutation' };
           } else {
             const rel = this.relation(child, a.shownBy);
             if (rel.kind === 'parent') note = { locus: locus.id, label: '', kind: 'parent' };
             else if (rel.kind === 'hidden')
-              note = { locus: locus.id, label: `${locus.name}: ${shown} (숨은 유전, 기록된 조상 중 이 ${locus.name}을 보인 개체 없음)`, kind: 'hidden' };
-            else note = { locus: locus.id, label: `${locus.name}: ${shown} (${rel.title} ${rel.name}의 ${locus.name})`, kind: rel.kind };
+              note = { locus: locus.id, label: `${locus.name}: ${valueName(locus.id, shown)} (숨은 유전, 기록된 조상 중 이 ${locus.name}을 보인 개체 없음)`, kind: 'hidden' };
+            else note = { locus: locus.id, label: `${locus.name}: ${valueName(locus.id, shown)} (${rel.title} ${rel.name}의 ${locus.name})`, kind: rel.kind };
           }
           if (!best || rankOf[note.kind] < rankOf[best.kind]) best = note;
         }
@@ -531,7 +536,7 @@ export class World {
   // ─── 저장/불러오기 ───
   serialize(): SaveData {
     return {
-      version: 2,
+      version: 3,
       seed: this.seed,
       rngState: this.rng.getState(),
       day: this.day,
@@ -547,7 +552,7 @@ export class World {
   }
 
   static load(data: SaveData): World {
-    if (data.version !== 2) throw new Error('지원하지 않는 저장 형식');
+    if (data.version !== 2 && data.version !== 3) throw new Error('지원하지 않는 저장 형식');
     const w = new World(data.seed);
     w.rng = new Rng(data.rngState);
     w.day = data.day;
@@ -562,6 +567,7 @@ export class World {
           ? { ...raw.pregnancy, embryos: raw.pregnancy.embryos.map((e) => ({ ...e, genome: decodeGenome(e.genome) })) }
           : null,
       };
+      if (data.version === 2) migrateV2(ind);
       w.individuals.set(ind.id, ind);
     }
     return w;

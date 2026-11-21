@@ -22,17 +22,37 @@ export interface DiscreteLocus {
   fallback?: string;
 }
 
+// 색 이름과 HEX는 data/colors.ts. 어두운 색일수록 우성인 편
 export const EYE_COLOR: DiscreteLocus = {
   id: 'eyeColor',
   name: '눈색',
-  rank: { 검정: 8, 갈색: 7, 금색: 6, 청록: 5, 초록: 4, 파랑: 3, 회색: 2, 보라: 1 },
+  rank: {
+    Onyx: 14, Chestnut: 13, Hazel: 12, Amber: 11, Gold: 10, Emerald: 9, Jade: 8, Teal: 7,
+    Aquamarine: 6, Sapphire: 5, 'Sky Blue': 4, 'Storm Grey': 3, Violet: 2, Lilac: 1,
+  },
   showInheritance: true,
 };
 
 export const HAIR_COLOR: DiscreteLocus = {
   id: 'hairColor',
   name: '머리색',
-  rank: { 검정: 8, 갈색: 7, 빨강: 6, 청록: 5, 금발: 4, 은발: 3, 백금: 2, 분홍: 1 },
+  rank: {
+    Raven: 13, 'Dark Brown': 12, Chestnut: 11, Auburn: 10, 'Copper Red': 9, 'Deep Teal': 8, 'Sea Green': 7,
+    'Honey Blonde': 6, Golden: 5, Silver: 4, Platinum: 3, Lavender: 2, 'Rose Pink': 1,
+  },
+  showInheritance: true,
+};
+
+/**
+ * 피부색: 우성 순위 없이 무작위 (사용자 결정 2026-11-21).
+ * 자식은 부모의 피부색 중 하나를 반반으로 받고, 낮은 확률(CONFIG.skinNewColorChance)로
+ * 자기 혈통에 든 종족들의 피부색 풀에서 새 색이 나온다. 규칙은 genome.ts의 inheritSkin.
+ * 겉으로 보이는 색만 물려주므로 대립유전자 두 개는 늘 같은 색이다
+ */
+export const SKIN_COLOR: DiscreteLocus = {
+  id: 'skinColor',
+  name: '피부색',
+  rank: {},
   showInheritance: true,
 };
 
@@ -90,11 +110,6 @@ export interface AdditiveGroup {
   max: number;
 }
 
-/** 피부색: 유전자 3개, 대립유전자 0/1 → 0~6단계 */
-export const SKIN: AdditiveGroup = {
-  id: 'skin', name: '피부색', loci: 3, base: 0, alleleMax: 1, noiseSd: 0, min: 0, max: 6,
-};
-export const SKIN_TONE_NAMES = ['창백함', '매우 밝음', '밝음', '중간', '구릿빛', '어두움', '매우 어두움'];
 
 export const BODY: Record<'height' | 'fat' | 'muscle', AdditiveGroup> = {
   height: { id: 'height', name: '키', loci: 8, base: 100, alleleMax: 8, noiseSd: 4, min: 120, max: 230 },

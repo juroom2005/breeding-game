@@ -1,7 +1,7 @@
 // 핵심 규칙 자동 테스트: npx tsx --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { World, raceLabel, MORPHS, type Individual } from '../src/engine';
+import { World, raceLabel, MORPHS, PIGMENT, RACES, SKIN_COLORS, CONFIG, type Individual } from '../src/engine';
 import { HAS, NOT, TRAITS, traitLocus } from '../src/engine/data/traits';
 
 const adultWorld = (seed = 1) => {
@@ -106,8 +106,8 @@ test('이형: 알비노/루시스틱, 오드아이, 황혼 쵸즌', () => {
     const alb = pale.filter((x) => x.pheno.albino);
     const leu = pale.filter((x) => x.pheno.leucistic);
     assert.ok(alb.length > 5 && leu.length > 5, '알비노와 루시스틱이 둘 다 나와야 함');
-    for (const x of alb) { assert.equal(x.pheno.eyeLeft, '붉은색'); assert.equal(x.pheno.hairColor, '백색'); }
-    for (const x of leu) { assert.notEqual(x.pheno.eyeLeft, '붉은색'); assert.equal(x.pheno.hairColor, '백색'); }
+    for (const x of alb) { assert.equal(x.pheno.eyeLeft, PIGMENT.albino.eye); assert.equal(x.pheno.hairColor, PIGMENT.albino.hair); }
+    for (const x of leu) { assert.notEqual(x.pheno.eyeLeft, PIGMENT.albino.eye); assert.equal(x.pheno.hairColor, PIGMENT.leucistic.hair); }
 
     force(['oddEye']);
     for (let i = 0; i < 20; i++) {
@@ -287,4 +287,75 @@ test('마켓 매물 옵션: 능력치 이동, 이형 강제, 초대 끄기', () 
   for (let i = 0; i < 2000; i++) {
     assert.equal(w.createMarketOffer('human', 'F', { naturalFounders: false }).foundedBloodlines.length, 0);
   }
+});
+
+test('피부색: 부모 색 중 하나, 낮은 확률로 혈통 풀에서 새 색', () => {
+  const w = adultWorld(31);
+  let same = 0, fresh = 0, total = 0;
+  const elfPool = new Set(Object.keys(RACES.elf.skinColor));
+  const humanPool = new Set(Object.keys(RACES.human.skinColor));
+  for (let i = 0; i < 300; i++) {
+    const m = w.buyFromMarket('elf', 'F');
+    const f = w.buyFromMarket('human', 'M');
+    for (let k = 0; k < 10; k++) {
+      const kid = w.breedInstant(m.id, f.id);
+      const c = kid.pheno.skinColor;
+      total++;
+      assert.ok(SKIN_COLORS[c], c);
+      // 하프엘프의 새 색은 엘프 또는 인간 풀에서만
+      assert.ok(elfPool.has(c) || humanPool.has(c), c);
+      // 두 대립유전자는 늘 같은 색 (보이는 색만 전해짐)
+      assert.equal(kid.genome.skinColor[0].v, kid.genome.skinColor[1].v);
+      if (c === m.pheno.skinColor || c === f.pheno.skinColor) same++;
+      if (kid.genome.skinColor[0].origin === kid.id) fresh++;
+    }
+    w.sell(m.id);
+    w.sell(f.id);
+  }
+  const p = fresh / total;
+  assert.ok(Math.abs(p - CONFIG.skinNewColorChance) < 0.02, `새 색 비율 ${p}`);
+  assert.ok(same / total > 0.94, `부모 색 비율 ${same / total}`);
+});
+
+test('예전 저장(형식 2): 피부 단계와 한국어 색 이름을 새 ID로 옮김', () => {
+  const w = adultWorld(32);
+  const m = w.buyFromMarket('human', 'F');
+  const f = w.buyFromMarket('human', 'M');
+  w.breedInstant(m.id, f.id);
+  const data = JSON.parse(JSON.stringify(w.serialize()));
+  data.version = 2;
+  for (const raw of data.individuals) {
+    const g = raw.genome;
+    // 예전 형식 흉내: skinColor → skin.0~2 (합 4 = 구릿빛), 눈/머리색 한국어
+    const race = g.skinColor[0][2];
+    delete g.skinColor;
+    for (let i = 0; i < 3; i++) g[`skin.${i}`] = [[i < 2 ? 1 : 0, raw.id, race, ''], [i < 2 ? 1 : 0, raw.id, race, '']];
+    g.eyeColor = [['갈색', raw.id, race, ''], ['파랑', raw.id, race, '']];
+    g.hairColor = [['검정', raw.id, race, ''], ['금발', raw.id, race, '']];
+    raw.pheno.eyeLeft = raw.pheno.eyeRight = raw.pheno.eyeColor = '갈색';
+    raw.pheno.hairColor = '검정';
+    raw.pheno.skinTone = 4;
+    raw.pheno.skinToneName = '구릿빛';
+    delete raw.pheno.skinColor;
+  }
+  const w2 = World.load(data);
+  for (const x of w2.all()) {
+    assert.equal(x.pheno.skinColor, 'Bronze');
+    assert.deepEqual(x.genome.skinColor.map((a) => a.v), ['Bronze', 'Bronze']);
+    assert.equal(x.genome['skin.0'], undefined);
+    assert.deepEqual(x.genome.eyeColor.map((a) => a.v), ['Chestnut', 'Sapphire']);
+    assert.equal(x.pheno.eyeColor, 'Chestnut');
+    assert.equal(x.pheno.hairColor, 'Raven');
+    assert.equal((x.pheno as unknown as { skinTone?: number }).skinTone, undefined);
+  }
+  // 옮긴 뒤에도 교배가 된다
+  const [m2, f2] = [w2.get(m.id)!, w2.get(f.id)!];
+  const saved = CONFIG.skinNewColorChance;
+  CONFIG.skinNewColorChance = 0;
+  try {
+    assert.equal(w2.breedInstant(m2.id, f2.id).pheno.skinColor, 'Bronze');
+  } finally {
+    CONFIG.skinNewColorChance = saved;
+  }
+  assert.equal(w2.serialize().version, 3);
 });

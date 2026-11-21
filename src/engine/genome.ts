@@ -4,7 +4,7 @@ import { Rng } from './rng';
 import type { Allele, BloodlineId, Genome, Pair, RaceId } from './types';
 import { CONFIG, curve } from './data/config';
 import {
-  BLOODLINE_GROUPS, BODY, EYE_COLOR, HAIR_COLOR, LINKAGE_GROUPS, SEX_TRAITS, SKIN, SLOTS, STATS,
+  BLOODLINE_GROUPS, BODY, EYE_COLOR, HAIR_COLOR, LINKAGE_GROUPS, SEX_TRAITS, SKIN_COLOR, SLOTS, STATS,
   locusKey, type AdditiveGroup, type DiscreteLocus,
 } from './data/loci';
 import { RACES } from './data/races';
@@ -16,7 +16,7 @@ const allele = (v: string | number, origin: string, race: RaceId): Allele => ({ 
 const pair = (a: Allele, b: Allele): Pair => [a, b];
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 
-export const DISCRETE_LOCI: DiscreteLocus[] = [EYE_COLOR, HAIR_COLOR, ...SLOTS];
+export const DISCRETE_LOCI: DiscreteLocus[] = [EYE_COLOR, HAIR_COLOR, SKIN_COLOR, ...SLOTS];
 
 /** 수치형 그룹 목록 (키 → 그룹 정의, 종족별 대립유전자 평균/표준편차를 꺼내는 함수) */
 const ADDITIVE_FOR_RACE: { group: AdditiveGroup; dist: (r: RaceId) => [number, number] }[] = [
@@ -33,7 +33,7 @@ const ADDITIVE_FOR_RACE: { group: AdditiveGroup; dist: (r: RaceId) => [number, n
 
 /** 유전자 ID → 수치형 그룹 (돌연변이 상한 확인용) */
 const ADDITIVE_GROUP_OF: Record<string, AdditiveGroup> = {};
-for (const g of [SKIN, ...ADDITIVE_FOR_RACE.map((x) => x.group), ...Object.values(BLOODLINE_GROUPS)]) {
+for (const g of [...ADDITIVE_FOR_RACE.map((x) => x.group), ...Object.values(BLOODLINE_GROUPS)]) {
   for (let i = 0; i < g.loci; i++) ADDITIVE_GROUP_OF[locusKey(g.id, i)] = g;
 }
 const MORPH_LOCI = new Set<string>();
@@ -90,9 +90,8 @@ export function createMarketGenome(
   };
   g[EYE_COLOR.id] = colorPair(r.eyeColor);
   g[HAIR_COLOR.id] = colorPair(r.hairColor);
-  for (let i = 0; i < SKIN.loci; i++) {
-    g[locusKey(SKIN.id, i)] = pair(mk(rng.chance(r.skinDarkP) ? 1 : 0), mk(rng.chance(r.skinDarkP) ? 1 : 0));
-  }
+  const skin = rng.weighted(r.skinColor);
+  g[SKIN_COLOR.id] = pair(mk(skin), mk(skin));
 
   // 슬롯: 순종이므로 종족 고유 파츠 두 개
   for (const s of SLOTS) g[s.id] = pair(mk(r.slots[s.id]), mk(r.slots[s.id]));
@@ -169,14 +168,16 @@ function transmit(locus: string, p: Pair, childId: string, rng: Rng, idx?: 0 | 1
       }
       return a;
     }
-    // 피부색(0/1)은 돌연변이로 흔들지 않음
-    if (add.id !== SKIN.id && rng.chance(CONFIG.additiveMutationRate)) {
+    if (rng.chance(CONFIG.additiveMutationRate)) {
       a.v = clamp((a.v as number) + rng.normal(0, CONFIG.additiveMutationSd), 0, add.alleleMax);
       a.origin = childId;
       a.shownBy = null;
     }
     return a;
   }
+
+  // 피부색의 새 색은 inheritSkin이 혈통 풀에서 따로 뽑는다
+  if (locus === SKIN_COLOR.id) return a;
 
   const disc = DISCRETE_OF[locus];
   if (disc && rng.chance(CONFIG.discreteMutationRate)) {
@@ -218,7 +219,25 @@ export function breedGenome(mother: Genome, father: Genome, childId: string, rng
       transmit(locus, father[locus], childId, rng, ff[locus]),
     );
   }
+  inheritSkin(g, childId, rng);
   return g;
+}
+
+/**
+ * 피부색: 엄마 색과 아빠 색 중 하나를 반반으로. 낮은 확률로 자식 혈통에 든 종족 풀에서 새 색
+ * (종족은 실제 유전 혈통 비율로, 색은 그 종족의 빈도로 뽑는다). 보이는 색만 다음 대에 전해지도록 두 대립유전자를 같게 맞춘다
+ */
+function inheritSkin(g: Genome, childId: string, rng: Rng) {
+  const p = g[SKIN_COLOR.id];
+  if (!p) return;
+  let shown: Allele;
+  if (rng.chance(CONFIG.skinNewColorChance)) {
+    const race = rng.weighted(geneticRace(g) as Record<RaceId, number>);
+    shown = allele(rng.weighted(RACES[race].skinColor), childId, race);
+  } else {
+    shown = { ...p[rng.chance(0.5) ? 0 : 1] };
+  }
+  g[SKIN_COLOR.id] = pair(shown, { ...shown });
 }
 
 /** 농장 각성: 일반 부모 사이에서 초대가 태어남 */

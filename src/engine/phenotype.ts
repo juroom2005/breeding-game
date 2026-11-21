@@ -4,7 +4,7 @@ import { Rng } from './rng';
 import type { BloodlineId, BloodlineState, ExtraParts, Genome, Pair, Phenotype, RaceId, Sex, StatId, Tattoo, TraitState } from './types';
 import { CONFIG, inbreedingStatPenalty } from './data/config';
 import {
-  BLOODLINE_GROUPS, BODY, EYE_COLOR, HAIR_COLOR, HAIR_STYLES, SEX_TRAITS, SKIN, SKIN_TONE_NAMES, SLOTS, STATS,
+  BLOODLINE_GROUPS, BODY, EYE_COLOR, HAIR_COLOR, HAIR_STYLES, SEX_TRAITS, SKIN_COLOR, SLOTS, STATS,
   type AdditiveGroup, type DiscreteLocus,
 } from './data/loci';
 import { BLOODLINES, BLOODLINE_IDS, COMBOS, NO_PATTERN, TATTOO_OPACITY, patternLocus } from './data/bloodlines';
@@ -108,9 +108,6 @@ function sizeLabel(v: number): string | null {
 }
 
 export function computePhenotype(g: Genome, sex: Sex, coi: number, rng: Rng): Phenotype {
-  // 색
-  const skinTone = clamp(Math.round(geneticSum(g, SKIN)), SKIN.min, SKIN.max);
-
   // 슬롯
   const race = geneticRace(g);
   const slots: Record<string, string> = {};
@@ -224,8 +221,7 @@ export function computePhenotype(g: Genome, sex: Sex, coi: number, rng: Rng): Ph
     eyeLeft,
     eyeRight,
     hairColor: pale ? PIGMENT.albino.hair : expressDiscrete(HAIR_COLOR, g[HAIR_COLOR.id]),
-    skinTone: pale ? 0 : skinTone,
-    skinToneName: albino ? PIGMENT.albino.skin : leucistic ? PIGMENT.leucistic.skin : SKIN_TONE_NAMES[skinTone],
+    skinColor: g[SKIN_COLOR.id][0].v as string,
     albino,
     leucistic,
     oddEye,

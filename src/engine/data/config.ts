@@ -7,6 +7,9 @@ export const CONFIG = {
    */
   marketHiddenColorChance: 0.2,
 
+  /** 피부색: 부모 색이 아닌 새 색(자식 혈통의 종족 풀에서)이 나올 확률 */
+  skinNewColorChance: 0.05,
+
   /** 색/파츠 대립유전자가 전달될 때 다른 값으로 바뀔 확률 */
   discreteMutationRate: 0.002,
   /** 수치형 대립유전자가 전달될 때 살짝 변할 확률과 폭 */

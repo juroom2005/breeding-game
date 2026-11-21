@@ -68,8 +68,8 @@ export interface Phenotype {
   eyeLeft: string;
   eyeRight: string;
   hairColor: string;
-  skinTone: number;
-  skinToneName: string;
+  /** 피부색 ID (data/colors.ts). 알비노/루시스틱이면 겉은 창백하지만 이 값은 원래 색 그대로 (자식에게 전해짐) */
+  skinColor: string;
   albino: boolean;
   leucistic: boolean;
   oddEye: boolean;

@@ -8,7 +8,9 @@ export { CONFIG, inbreedingStatPenalty } from './data/config';
 export { RACES, RACE_IDS } from './data/races';
 export { BLOODLINES, BLOODLINE_IDS, COMBOS } from './data/bloodlines';
 export { TRAITS } from './data/traits';
-export { SLOTS, STAT_NAMES, EYE_COLOR, HAIR_COLOR } from './data/loci';
+export { SLOTS, STAT_NAMES, EYE_COLOR, HAIR_COLOR, SKIN_COLOR } from './data/loci';
+export { SKIN_COLORS, EYE_COLORS, HAIR_COLORS, colorLabel, type NamedColor, type SkinColor } from './data/colors';
+export { PIGMENT } from './data/morphs';
 
 import type { Individual, RaceId } from './types';
 import { RACES } from './data/races';
