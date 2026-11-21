@@ -183,9 +183,16 @@ test('쌍둥이 비율: 인간 약 1.2%, 엘프는 더 낮음', () => {
     return twins / births;
   };
   const h = count('human');
-  const e = count('elf');
   assert.ok(h > 0.005 && h < 0.025, `인간 ${h}`);
-  assert.ok(e < h, `엘프 ${e} < 인간 ${h}`);
+  // 엘프(0.7%)와 인간(1.2%)의 차이는 시드 하나 4000회로는 우연에 묻힐 수 있어 확률값을 직접 비교한다
+  const w = adultWorld(8);
+  const plain = (race: 'human' | 'elf') => {
+    for (;;) {
+      const x = w.buyFromMarket(race, 'F');
+      if (x.pheno.traits.length === 0) return x;
+    }
+  };
+  assert.ok(w.twinChance(plain('elf')) < w.twinChance(plain('human')));
 });
 
 test('판매해도 족보와 근친 계산은 유지되고, 저장/불러오기가 같다', () => {

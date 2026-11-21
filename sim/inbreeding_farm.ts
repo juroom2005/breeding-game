@@ -84,7 +84,7 @@ function run(v: Variant, seed: number, marketEvery: number) {
   return out;
 }
 
-// 엔진 v0.7 제안(대립유전자 편차 2.2)과 비교하기 위한 옵션. 시뮬레이션 안에서만 바꾸고 되돌린다
+// 예전 대립유전자 편차(인간 1.3)와 비교하기 위한 옵션. 시뮬레이션 안에서만 바꾸고 되돌린다
 const HUMAN_STATS = RACES.human.stats;
 function withAlleleSd<T>(sd: number | null, f: () => T): T {
   if (sd === null) return f();
@@ -99,9 +99,9 @@ function withAlleleSd<T>(sd: number | null, f: () => T): T {
 
 const avg = (a: number[]) => a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
 const SEEDS = 60;
-for (const [marketEvery, sd] of [[0, null], [3, null], [0, 2.2], [3, 2.2]] as [number, number | null][]) {
+for (const [marketEvery, sd] of [[0, 1.3], [3, 1.3], [0, null], [3, null]] as [number, number | null][]) {
   const head = marketEvery ? `마켓 ${marketEvery}일마다 확인 (5마리 중 최고가 최하위보다 좋으면 구매)` : '마켓 안 씀 (시작 2마리로만)';
-  console.log(`\n== ${head}${sd ? ` + 유전 편차 ${sd}` : ''} ==`);
+  console.log(`\n== ${head} + 유전 편차 ${sd ?? '현재 설정'} ==`);
   console.log(`농장 최고 종합 점수 평균: ${DAYS.join('일 / ')}일 | 태어난 개체 평균 근친 계수 | 근친 부작용 비율`);
   for (const v of VARIANTS) {
     const rs = withAlleleSd(sd, () => Array.from({ length: SEEDS }, (_, i) => run(v, 1000 + i, marketEvery)));

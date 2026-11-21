@@ -41,6 +41,13 @@ export interface RaceDef {
 // 0~100 수치: 대립유전자 12개 합. 평균 50 = 12 × 4.17
 const S = (mean: number, sd = 1.0): [number, number] => [mean / 12, sd];
 
+/**
+ * 능력치 대립유전자 편차 (2026-11-21, 예전 1.0~1.3 → 2.2).
+ * 편차가 작으면 형제끼리 능력치가 비슷해서 골라 교배해도 점수가 거의 안 오른다 (sim/inbreeding_farm.ts).
+ * 마켓 매물 점수 분포는 market.ts가 목표 분포에 맞춰 뽑으므로 이 값과 상관없이 유지된다
+ */
+const STAT_SD = 2.2;
+
 export const RACES: Record<RaceId, RaceDef> = {
   human: {
     id: 'human',
@@ -51,8 +58,8 @@ export const RACES: Record<RaceId, RaceDef> = {
     slots: { ear: '둥근 귀', lowerBody: '다리', arms: '기본', skinPattern: '없음', eyeShape: '기본' },
     height: [70 / 16, 1.2],
     fat: S(50), muscle: S(50), chest: S(50, 1.6), genital: S(50, 1.6),
-    // 인간: 근력 특화, 개체차가 커서 어느 능력치든 튀는 개체가 나오기 쉬움
-    stats: { vitality: S(51, 1.3), strength: S(57, 1.3), agility: S(50, 1.3), charm: S(49, 1.3) },
+    // 인간: 근력 특화
+    stats: { vitality: S(51, STAT_SD), strength: S(57, STAT_SD), agility: S(50, STAT_SD), charm: S(49, STAT_SD) },
     gestationDays: 2, babyDays: 2, fertility: 0.7, twinRate: 0.012,
     babyFace: '인간 아기 얼굴',
     names: {
@@ -70,7 +77,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     height: [80 / 16, 1.2],
     fat: S(44), muscle: S(45), chest: S(46, 1.6), genital: S(46, 1.6),
     // 엘프: 민첩, 매력 특화. 근력은 낮은 편
-    stats: { vitality: S(46), strength: S(42), agility: S(61), charm: S(58) },
+    stats: { vitality: S(46, STAT_SD), strength: S(42, STAT_SD), agility: S(61, STAT_SD), charm: S(58, STAT_SD) },
     gestationDays: 3, babyDays: 3, fertility: 0.5, twinRate: 0.007,
     babyFace: '엘프 아기 얼굴',
     names: {
@@ -88,7 +95,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     height: [68 / 16, 1.2],
     fat: S(52), muscle: S(50), chest: S(52, 1.6), genital: S(50, 1.6),
     // 인어: 활력, 매력 특화
-    stats: { vitality: S(60), strength: S(46), agility: S(50), charm: S(56) },
+    stats: { vitality: S(60, STAT_SD), strength: S(46, STAT_SD), agility: S(50, STAT_SD), charm: S(56, STAT_SD) },
     gestationDays: 3, babyDays: 3, fertility: 0.55, twinRate: 0.007,
     babyFace: '인어 아기 얼굴',
     names: {
