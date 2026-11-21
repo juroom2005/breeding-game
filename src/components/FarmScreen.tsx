@@ -7,7 +7,7 @@ import { buyPrice, dailyUpkeep, nextTax, sellPrice, slotUpgradeCost } from '@/ga
 import { offerList } from '@/game/market';
 import { josa } from '@/game/josa';
 import { isTypingTarget, loadShortcutsEnabled, saveShortcutsEnabled } from '@/game/shortcuts';
-import IndividualCard, { type DropHint } from './IndividualCard';
+import IndividualCard, { CARD_HEIGHT, type DropHint } from './IndividualCard';
 import DetailPanel, { BreedAction, ConfirmButton } from './DetailPanel';
 import MarketView, { buyBlockReason } from './MarketView';
 import BreedingPanel from './BreedingPanel';
@@ -432,7 +432,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
                     type="button"
                     tabIndex={-1}
                     onClick={() => setSelectedId(x.id)}
-                    className="flex h-[168px] w-full flex-col items-center justify-center gap-1 rounded-xl border border-female/30 bg-[#fbeef3]/60 p-2 text-center text-xs text-female"
+                    className={`flex ${CARD_HEIGHT} w-full flex-col items-center justify-center gap-1 rounded-xl border border-female/30 bg-[#fbeef3]/60 p-2 text-center text-xs text-female`}
                   >
                     <span className="font-semibold">임신실 사용 중</span>
                     <span className="w-full truncate text-mute">{x.name}의 칸</span>
@@ -440,7 +440,7 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
                 </li>
               ))}
               {Array.from({ length: emptyCells }, (_, i) => (
-                <li key={`empty-${i}`} aria-hidden="true" className="flex h-[168px] items-center justify-center rounded-xl border border-dashed border-line text-xs text-mute">
+                <li key={`empty-${i}`} aria-hidden="true" className={`flex ${CARD_HEIGHT} items-center justify-center rounded-xl border border-dashed border-line text-xs text-mute`}>
                   빈 칸
                 </li>
               ))}
@@ -492,7 +492,6 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
                 key={selected.id}
                 ind={selected}
                 world={world}
-                state={state}
                 shortcutsOn={shortcutsOn}
                 onPedigree={view === 'farm' ? () => setPedigreeId(selected.id) : undefined}
                 actions={

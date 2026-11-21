@@ -1,5 +1,5 @@
 // 종족 분류 이름: 계보상 혈통 %로 정한다.
-//  - 순종: 엘프
+//  - 기록된 조상이 전부 한 종족: 순혈 엘프 (90%처럼 대부분이어도 다른 종족이 섞이면 순혈이 아니다)
 //  - 두 종족 50:50: 하프 + (인간이 아닌 쪽). 둘 다 인간이 아니면 엄마 쪽 종족
 //  - 인간 75% + 다른 종족 25%: 쿼터 + (그 종족)
 //  - 그 밖: 가장 많이 차지하는 종족. 동률이면 엄마 쪽 종족
@@ -13,7 +13,7 @@ export function raceLabel(pedigree: Partial<Record<RaceId, number>>, motherMain?
   const entries = (Object.entries(pedigree) as [RaceId, number][])
     .filter(([, v]) => v > EPS)
     .sort((a, b) => b[1] - a[1]);
-  if (entries.length === 1) return RACES[entries[0][0]].name;
+  if (entries.length === 1) return `순혈 ${RACES[entries[0][0]].name}`;
 
   if (entries.length === 2) {
     const [[a, va], [b, vb]] = entries;

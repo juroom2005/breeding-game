@@ -1,6 +1,7 @@
 import type { Individual, World } from '@/engine';
 import { totalScore } from '@/game/game';
 import Portrait from './Portrait';
+import { raceRatio, raceRatioShort } from '@/game/race';
 
 export interface DropHint {
   kind: 'mate' | 'swap' | 'blocked';
@@ -20,6 +21,9 @@ interface Props {
   onPointerDown?: (e: React.PointerEvent) => void;
 }
 
+/** 농장 칸의 빈 칸, 임신실 칸도 같은 높이를 써야 목록이 흔들리지 않는다 */
+export const CARD_HEIGHT = 'h-[184px]';
+
 export default function IndividualCard({ ind, world, selected, focusable, dragging, hint, holdMs, onSelect, onPointerDown }: Props) {
   const adult = world.isAdult(ind);
   const female = ind.sex === 'F';
@@ -33,7 +37,7 @@ export default function IndividualCard({ ind, world, selected, focusable, draggi
       onClick={onSelect}
       onPointerDown={onPointerDown}
       aria-pressed={selected}
-      className={`relative flex h-[168px] w-full select-none ${onPointerDown ? 'cursor-grab' : 'cursor-pointer'} flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
+      className={`relative flex ${CARD_HEIGHT} w-full select-none ${onPointerDown ? 'cursor-grab' : 'cursor-pointer'} flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
         selected ? 'border-accent ring-2 ring-accent/30' : 'border-line hover:border-accent/60'
       } ${dragging ? 'opacity-40' : ''} ${hint?.kind === 'mate' ? 'border-female ring-2 ring-female/40' : ''}`}
     >
@@ -61,6 +65,8 @@ export default function IndividualCard({ ind, world, selected, focusable, draggi
             )}
           </span>
         </div>
+        <span aria-hidden="true" className="block h-4 truncate text-[11px] leading-4 tabular-nums text-mute">{raceRatioShort(ind)}</span>
+        <span className="sr-only">, 혈통 {raceRatio(ind)}</span>
       </div>
       {hint && (
         <span aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-panel/90 p-2 text-center text-xs font-semibold">

@@ -5,6 +5,7 @@ import { farmCount, totalScore, type GameState } from '@/game/game';
 import { buyPrice } from '@/game/economy';
 import { MARKET, offerList } from '@/game/market';
 import Portrait from './Portrait';
+import { raceRatio, raceRatioShort } from '@/game/race';
 
 interface Props {
   world: World;
@@ -81,7 +82,7 @@ function OfferCard({ ind, selected, onSelect }: { ind: Individual; selected: boo
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`relative flex h-[204px] w-full flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
+      className={`relative flex h-[220px] w-full flex-col items-center rounded-xl border bg-panel p-2.5 text-left ${
         selected ? 'border-accent ring-2 ring-accent/30' : rare.length ? 'border-gold/60' : 'border-line hover:border-accent/60'
       }`}
     >
@@ -99,6 +100,8 @@ function OfferCard({ ind, selected, onSelect }: { ind: Individual; selected: boo
             {totalScore(ind)}점
           </span>
         </span>
+        <span aria-hidden="true" className="block h-4 w-full truncate text-[11px] leading-4 tabular-nums text-mute">{raceRatioShort(ind)}</span>
+        <span className="sr-only">, 혈통 {raceRatio(ind)}</span>
         <span className="mt-1 block h-8 text-[11px] leading-4">
           <span className="line-clamp-2">
             {rare.length > 0 && <b className="text-gold">{rare.join(' · ')} </b>}

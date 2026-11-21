@@ -54,7 +54,8 @@ test('열성 유전: 캐리어끼리 교배하면 약 25% 발현', () => {
 });
 
 test('종족 분류: 하프, 쿼터, 그 뒤는 다수 종족', () => {
-  assert.equal(raceLabel({ elf: 1 }), '엘프');
+  assert.equal(raceLabel({ elf: 1 }), '순혈 엘프');
+  assert.equal(raceLabel({ elf: 0.875, human: 0.125 }), '엘프');
   assert.equal(raceLabel({ elf: 0.5, human: 0.5 }), '하프엘프');
   assert.equal(raceLabel({ elf: 0.25, human: 0.75 }), '쿼터엘프');
   assert.equal(raceLabel({ elf: 0.125, human: 0.875 }), '인간');

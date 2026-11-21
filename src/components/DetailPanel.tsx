@@ -5,20 +5,19 @@ import {
   BLOODLINES, BLOODLINE_IDS, CONFIG, SLOTS, STAT_NAMES, formatHouses, formatRace, geneticRace,
   type Individual, type World,
 } from '@/engine';
-import { SHOWN_STATS, STAT_MAX, shownStat, totalScore, type GameState } from '@/game/game';
+import { SHOWN_STATS, STAT_MAX, shownStat, totalScore } from '@/game/game';
 import { upkeepOf } from '@/game/economy';
 import Portrait from './Portrait';
 
 interface Props {
   ind: Individual;
   world: World;
-  state: GameState;
   actions?: ReactNode;
   onPedigree?: () => void;
   shortcutsOn?: boolean;
 }
 
-export default function DetailPanel({ ind, world, state, actions, onPedigree, shortcutsOn }: Props) {
+export default function DetailPanel({ ind, world, actions, onPedigree, shortcutsOn }: Props) {
   const adult = world.isAdult(ind);
   const p = ind.pheno;
   const mother = world.get(ind.motherId);
@@ -37,9 +36,16 @@ export default function DetailPanel({ ind, world, state, actions, onPedigree, sh
           </p>
           <h2 id="detail-name" className="truncate text-2xl font-bold">{ind.name}</h2>
           <p className="truncate text-sm text-mute">
-            {ind.raceLabel} · {ind.generation}세대 · {ind.status === 'market' ? '마켓 매물' : ind.source === 'market' ? '마켓 출신' : `${state.farmName} 출신`}
+            {ind.raceLabel} · {ind.generation}세대
           </p>
-          <p className="h-4 truncate text-xs text-mute">{(mother || father) && `부모: ${mother?.name ?? '?'} × ${father?.name ?? '?'}`}</p>
+          <p className="h-4 truncate text-xs text-mute">
+            {/* 농장에서 태어난 개체는 출신이 늘 이 농장이라, 좁은 머리줄에는 부모만 보인다 */}
+            {ind.status === 'market'
+              ? '마켓 매물'
+              : ind.source === 'market'
+                ? '마켓 출신'
+                : `부모: ${mother?.name ?? '?'} × ${father?.name ?? '?'}`}
+          </p>
           <p className="h-4 text-xs text-mute tabular-nums">하루 유지비 {upkeepOf(ind, world)}g</p>
         </div>
         {onPedigree && (

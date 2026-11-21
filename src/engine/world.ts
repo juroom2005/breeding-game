@@ -132,7 +132,7 @@ export class World {
       source: 'market',
       status: 'market',
       pedigreeRace: { [race]: 1 },
-      raceLabel: RACES[race].name,
+      raceLabel: raceLabel({ [race]: 1 }),
       coi: 0,
       genome,
       pheno,
@@ -555,6 +555,8 @@ export class World {
     for (const raw of data.individuals) {
       const ind: Individual = {
         ...raw,
+        // 2026-11-21 전 저장은 순혈도 '엘프'로 저장돼 있다. 혼혈 이름은 그대로라 순혈만 다시 계산한다
+        raceLabel: Object.keys(raw.pedigreeRace).length === 1 ? raceLabel(raw.pedigreeRace) : raw.raceLabel,
         genome: decodeGenome(raw.genome),
         pregnancy: raw.pregnancy
           ? { ...raw.pregnancy, embryos: raw.pregnancy.embryos.map((e) => ({ ...e, genome: decodeGenome(e.genome) })) }

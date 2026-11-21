@@ -5,6 +5,7 @@ import type { Individual, World } from '@/engine';
 import { totalScore } from '@/game/game';
 import { josa } from '@/game/josa';
 import Portrait from './Portrait';
+import { raceRatio } from '@/game/race';
 
 interface Props {
   rootId: string;
@@ -154,7 +155,7 @@ export default function PedigreeDialog({ rootId, world, onClose, onShow }: Props
             족보 · {center.name}
           </h2>
           <p className="truncate text-sm tabular-nums text-mute">
-            {center.raceLabel} · {center.generation}세대 · 근친 계수 {(center.coi * 100).toFixed(1)}%
+            {center.raceLabel} ({raceRatio(center)}) · {center.generation}세대 · 근친 계수 {(center.coi * 100).toFixed(1)}%
           </p>
         </div>
         <button
@@ -284,7 +285,7 @@ function TreeNode({
   const adult = world.isAdult(ind);
   const female = ind.sex === 'F';
   const status = statusText(ind, world);
-  const tipText = [status, here && adult ? `종합 ${totalScore(ind)}점` : '', repeat > 1 ? `이 족보에 ${repeat}번 나옴` : ''].filter(Boolean).join(' · ');
+  const tipText = [raceRatio(ind), status, here && adult ? `종합 ${totalScore(ind)}점` : '', repeat > 1 ? `이 족보에 ${repeat}번 나옴` : ''].filter(Boolean).join(' · ');
 
   // 말풍선 위로 마우스를 옮겨도 닫히지 않게 감싸는 요소에서 hover를 잡는다.
   // 말풍선은 fixed라서 스크롤 영역 밖으로 나가도 스크롤바가 생기지 않는다
@@ -316,7 +317,7 @@ function TreeNode({
         </span>
         <span className="w-full truncate text-[11px] text-mute">{ind.raceLabel}</span>
         <span className="sr-only">
-          , {female ? '여성' : '남성'}, {status}
+          , {female ? '여성' : '남성'}, 혈통 {raceRatio(ind)}, {status}
           {repeat > 1 ? `, 이 족보에 ${repeat}번 나옴` : ''}
         </span>
         <span
