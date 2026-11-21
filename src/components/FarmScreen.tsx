@@ -479,12 +479,13 @@ export default function FarmScreen({ state, world, onNextDay, onMate, onReorder,
         )}
 
         <aside aria-label={view === 'market' ? '선택한 매물과 농장 기록' : '선택한 개체와 농장 기록'} className="flex flex-col gap-5 lg:min-h-0">
+          {/* 좁은 화면에서도 높이를 고정해 개체마다 상세 길이가 달라도 아래 기록이 밀리지 않게 한다. svh는 모바일 주소창이 접혀도 바뀌지 않는다 */}
           <div
             ref={detailRef}
             role="region"
             aria-label={view === 'market' ? '매물 상세' : '개체 상세'}
             tabIndex={0}
-            className="rounded-2xl border border-line bg-panel p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:[scrollbar-gutter:stable]"
+            className="h-[min(40rem,85svh)] overflow-y-auto rounded-2xl border border-line bg-panel p-5 [scrollbar-gutter:stable] lg:h-auto lg:min-h-0 lg:flex-1"
           >
             {selected ? (
               <DetailPanel
